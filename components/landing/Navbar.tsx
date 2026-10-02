@@ -17,8 +17,8 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-forest/5 bg-white/90 backdrop-blur">
-      <Container className="flex h-16 items-center justify-between sm:h-20">
+    <header className="sticky top-0 z-50 border-b border-forest/5 bg-white backdrop-blur">
+      <Container className="flex h-16 items-center justify-between sm:h-26">
         <Logo />
 
         <nav className="hidden items-center gap-8 lg:flex" aria-label="Main">
@@ -33,11 +33,11 @@ export default function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
-          <Button href="/signup" variant="ghost">
+        <div className="hidden items-center gap-8 lg:flex">
+          <Button className="rounded-lg text-sm px-6 py-4 border-primary border" href="/signup" variant="ghost">
             Sign Up
           </Button>
-          <Button href="/onboarding">Get Started</Button>
+          <Button className="rounded-lg border text-sm px-6 py-4 bg-primary text-white" href="/onboarding">Get Started</Button>
         </div>
 
         <button

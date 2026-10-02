@@ -1,46 +1,54 @@
 import Button from "@/components/ui/Button";
 import Container from "@/components/ui/Container";
 import SectionHeading from "@/components/ui/SectionHeading";
+import { ArrowRightLeft, CheckCircle, HouseHeart } from "lucide-react";
+import Image from "next/image";
 
 const STEPS = [
   {
     number: "01",
-    title: "Scan",
+    title: "Point & Scan",
     description:
-      "Point your camera at any product label or plant leaf. Tracee captures everything it needs instantly.",
+      "Frame any product ingredient panel, or troubled plant leaf with your smartphone camera. Auto focus captures optical and textual details in under 200 milliseconds",
+      subtext: "Supports OCR, GTIN & Leaf Vision",
+      icon: <HouseHeart className="w-4 h-4"/>
   },
   {
     number: "02",
-    title: "Trace",
+    title: "Cross-Reference",
     description:
-      "We cross-reference ingredients and plant symptoms against trusted databases and your personal profile.",
+      "Tracee immediately compares raw optical data against 10M+ clinical laboratory entries, botanical herbarium registries, and your encrypted health preferences",
+      subtext: "Sub-second neutral query processing",
+      icon: <ArrowRightLeft className="w-4 h-4"/>
   },
   {
     number: "03",
-    title: "Know",
+    title: "Verdict & Action",
     description:
-      "Get a clear safety verdict, flagged concerns, and smarter alternatives — in plain language you can act on.",
+      "Receive clean, unambiguous verdicts, clear green-check safety indicators, personalized allegen notifications, or step-by-step horticultural recovery guides.",
+      subtext: "Clear ratings & curated alternatives",
+      icon: <CheckCircle className="w-4 h-4"/>
   },
 ];
 
 export default function HowItWorks() {
   return (
     <section id="how-it-works" className="py-16 sm:py-20 lg:py-24">
-      <Container className="flex flex-col items-center gap-12 lg:gap-16">
+      <Container className="flex flex-col items-center gap-12 lg:gap-16 max-w-7xl! px-0 lg:px-8!">
         <SectionHeading
-          eyebrow="How It Works"
-          title="Clear answers in 3 simple steps"
-          subtitle="No jargon, no guesswork — just evidence-based clarity from scan to verdict."
+          eyebrow="Zero Complexity"
+          title="How It Works in 3 Simple Steps"
+          subtitle="Advanced multi-spectral machine learning packaged into an effortless, point-and-tap interface."
         />
 
-        <ol className="grid w-full gap-6 sm:grid-cols-3">
+        <ol className="grid w-full gap-6 lg:gap-8 sm:grid-cols-3">
           {STEPS.map((step) => (
             <li
               key={step.number}
-              className="relative flex flex-col gap-4 rounded-3xl bg-sage p-8"
+              className="relative flex flex-col gap-4 rounded-2xl bg-sage p-4 md:p-6 lg:p-8"
             >
               <span
-                className="text-5xl font-extrabold text-forest/15"
+                className="text-base lg:text-lg w-12 h-12 font-bold text-white rounded-full bg-primary text-center items-center flex justify-center"
                 aria-hidden="true"
               >
                 {step.number}
@@ -49,26 +57,17 @@ export default function HowItWorks() {
               <p className="text-sm leading-relaxed text-gray-600">
                 {step.description}
               </p>
-              {step.number !== "03" ? (
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="absolute -right-4 top-1/2 hidden h-6 w-6 -translate-y-1/2 text-forest/30 sm:block"
-                  aria-hidden="true"
-                >
-                  <path d="M9 6l6 6-6 6" />
-                </svg>
-              ) : null}
+              <div className="flex gap-2 items-center bg-white rounded-xl w-full p-3">
+                {step.icon}
+                <p className="text-[#151C27] text-sm">{step.subtext}</p>
+              </div>
+             
             </li>
           ))}
         </ol>
 
-        <Button href="/onboarding" size="lg">
-          Start Your First Scan
+        <Button href="/onboarding" size="lg" className="px-4.5 py-4 bg-primary text-white font-bold text-sm md:text-base rounded-lg">
+          See how it works
         </Button>
       </Container>
     </section>
