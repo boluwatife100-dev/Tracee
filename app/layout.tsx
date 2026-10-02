@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
@@ -20,7 +21,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-white text-forest font-sans">
-        {children}
+        <ClerkProvider
+          signInForceRedirectUrl="/auth/sync"
+          signUpForceRedirectUrl="/preferences"
+        >
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );

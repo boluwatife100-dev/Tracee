@@ -25,7 +25,7 @@ export default function CtaBanner() {
           </p>
 
           <Button
-            href="/onboarding"
+            href="/signup"
             size="lg"
             className="bg-white text-forest hover:bg-sage p-3 lg:p-4 rounded-2xl"
           >

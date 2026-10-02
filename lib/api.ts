@@ -129,10 +129,17 @@ export const DEMO_USERNAME = "Amber";
 
 /** Save the user's personalization preferences. */
 export async function savePreferences(
-  _selection: PreferenceSelection
+  selection: PreferenceSelection
 ): Promise<void> {
-  // TODO(backend): PUT `${API_BASE_URL}/me/preferences`
-  return;
+  const response = await fetch("/api/me/preferences", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(selection),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to save preferences.");
+  }
 }
 
 export type TreatmentAction = "prune" | "airflow" | "spray" | "water";

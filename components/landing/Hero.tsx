@@ -34,7 +34,7 @@ export default function Hero() {
 
             <div className="flex flex-col items-start gap-2.5 min-[420px]:flex-row">
               <Button
-                href="/onboarding"
+                href="/signup"
                 size="md"
                 className="rounded-lg bg-primary px-5 py-4 lg:px-10 text-sm font-semibold text-white shadow-sm transition hover:bg-[#002a22]"
               >

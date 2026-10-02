@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { SignIn } from "@clerk/nextjs";
 import Logo from "@/components/ui/Logo";
-import LoginForm from "@/components/auth/LoginForm";
 
 export const metadata = {
   title: "Login — Tracee",
@@ -10,13 +10,13 @@ export const metadata = {
 
 export default function LoginPage() {
   return (
-    <main className="grid flex-1 min-h-[100svh] lg:grid-cols-2">
+    <main className="grid flex-1 min-h-svh lg:grid-cols-2 bg-sage">
       <section className="flex flex-col bg-sage">
         <div className="px-6 pt-6 lg:px-14 lg:pt-10">
           <Logo />
         </div>
 
-        <div className="flex flex-1 items-center px-6 py-12 lg:px-14 lg:py-16">
+        <div className="flex flex-1 items-start px-6 py-12 lg:px-14 lg:py-16 mt-10 lg:mt-20">
           <div className="flex max-w-md flex-col items-start gap-5">
             <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-forest sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
               Welcome back!
@@ -37,8 +37,11 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="flex items-center justify-center bg-white px-6 py-16 lg:py-0">
-        <LoginForm />
+      <section className="flex h-full items-center justify-center px-6 py-12 lg:min-h-svh lg:py-0 lg:px-0">
+        <div className="mx-auto flex w-full max-w-4xl flex-col items-center justify-center gap-6 rounded-lg bg-white p-10 backdrop-blur-sm lg:p-2 lg:self-stretch my-1 lg:my-20">
+          <SignIn />
+        </div>
+        
       </section>
     </main>
   );

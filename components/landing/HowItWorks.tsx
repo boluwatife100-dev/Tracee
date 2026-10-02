@@ -66,7 +66,7 @@ export default function HowItWorks() {
           ))}
         </ol>
 
-        <Button href="/onboarding" size="lg" className="px-4.5 py-4 bg-primary text-white font-bold text-sm md:text-base rounded-lg">
+        <Button href="/#onboarding" size="lg" className="px-4.5 py-4 bg-primary text-white font-bold text-sm md:text-base rounded-lg">
           See how it works
         </Button>
       </Container>

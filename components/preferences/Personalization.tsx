@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { savePreferences } from "@/lib/api";
 
 const ALLERGIES = [
@@ -125,7 +126,7 @@ export default function Personalization() {
   return (
     <div className="flex min-h-[100svh] flex-col bg-sage">
       <div className="flex flex-col items-start gap-5 px-6 pt-8 lg:px-14 lg:pt-12">
-        <a
+        <Link
           href="/signup"
           className="inline-flex items-center gap-2 text-sm font-medium text-forest transition-opacity hover:opacity-70"
         >
@@ -142,7 +143,7 @@ export default function Personalization() {
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           Back
-        </a>
+        </Link>
 
         <div className="flex flex-col gap-3">
           <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-forest sm:text-4xl lg:text-[3rem] lg:leading-[1.1]">
