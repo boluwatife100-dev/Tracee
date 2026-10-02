@@ -41,7 +41,6 @@ export default function LoginPage() {
         <div className="mx-auto flex w-full max-w-4xl flex-col items-center justify-center gap-6 rounded-lg bg-white p-10 backdrop-blur-sm lg:p-2 lg:self-stretch my-1 lg:my-20">
           <SignIn />
         </div>
-        
       </section>
     </main>
   );

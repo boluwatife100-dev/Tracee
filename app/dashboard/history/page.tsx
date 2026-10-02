@@ -1,4 +1,3 @@
-import AppShell from "@/components/dashboard/AppShell";
 import HistoryView from "@/components/history/HistoryView";
 import { fetchScanHistoryPage } from "@/lib/api";
 
@@ -10,12 +9,5 @@ export const metadata = {
 export default async function HistoryPage() {
   const { items, total } = await fetchScanHistoryPage();
 
-  return (
-    <AppShell title="Scan History" active="history">
-      <HistoryView
-        items={items}
-        total={total}
-      />
-    </AppShell>
-  );
+  return <HistoryView items={items} total={total} />;
 }

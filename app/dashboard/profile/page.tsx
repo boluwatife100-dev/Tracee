@@ -1,4 +1,3 @@
-import AppShell from "@/components/dashboard/AppShell";
 import ProfileView from "@/components/profile/ProfileView";
 import { fetchProfile } from "@/lib/api";
 
@@ -11,9 +10,5 @@ export const metadata = {
 export default async function ProfilePage() {
   const profile = await fetchProfile();
 
-  return (
-    <AppShell title="User Profile" active="profile">
-      <ProfileView profile={profile} />
-    </AppShell>
-  );
+  return <ProfileView profile={profile} />;
 }

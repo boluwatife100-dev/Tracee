@@ -1,51 +1,76 @@
-import Link from "next/link";
-import {
-  DashboardIcon,
-  PlantIcon,
-  ScanIcon,
-  HistoryIcon,
-  ProfileIcon,
-} from "@/components/ui/icons";
+"use client";
 
-export type NavKey = "dashboard" | "plant" | "scan" | "history" | "profile";
+import { usePathname } from "next/navigation";
+import {
+  History,
+  LayoutDashboard,
+  ScanLine,
+  Sprout,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react";
+import Logo from "@/components/ui/Logo";
+import {
+  Sidebar as SidebarRoot,
+  SidebarContent,
+  SidebarGroup,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 
 const NAV_ITEMS: {
   label: string;
   href: string;
-  icon: (props: React.SVGProps<SVGSVGElement>) => React.ReactNode;
-  key: NavKey;
+  icon: LucideIcon;
 }[] = [
-  { label: "Dashboard", href: "/dashboard", icon: DashboardIcon, key: "dashboard" },
-  { label: "My Plant", href: "#", icon: PlantIcon, key: "plant" },
-  { label: "Scan", href: "/scan", icon: ScanIcon, key: "scan" },
-  { label: "History", href: "/history", icon: HistoryIcon, key: "history" },
-  { label: "Profile", href: "/profile", icon: ProfileIcon, key: "profile" },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "My Plant", href: "/dashboard/my-plant", icon: Sprout },
+  { label: "Scan", href: "/dashboard/scan", icon: ScanLine },
+  { label: "History", href: "/dashboard/history", icon: History },
+  { label: "Profile", href: "/dashboard/profile", icon: UserRound },
 ];
 
-export default function Sidebar({ active = "dashboard" }: { active?: NavKey }) {
+export default function DashboardSidebar() {
+  const pathname = usePathname();
+
   return (
-    <nav className="w-16 shrink-0 bg-sage py-8 lg:w-64 lg:px-4">
-      <ul className="flex flex-col gap-2">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.key === active;
-          const classes = isActive
-            ? "bg-forest text-white"
-            : "bg-transparent text-forest hover:bg-forest/5";
-          return (
-            <li key={item.key}>
-              <Link
-                href={item.href}
-                aria-current={isActive ? "page" : undefined}
-                className={`flex items-center justify-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors lg:justify-start ${classes}`}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                <span className="hidden lg:inline">{item.label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <SidebarRoot>
+      <SidebarHeader className="justify-center px-0 lg:justify-start lg:px-5">
+        <div className="hidden min-w-0 overflow-hidden lg:block">
+          <Logo />
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarMenu>
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.href === "/dashboard"
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+              return (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    href={item.href}
+                    isActive={isActive}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-label={item.label}
+                    title={item.label}
+                  >
+                    <Icon className="size-5 shrink-0" aria-hidden="true" />
+                    <span className="hidden truncate lg:inline lg:group-data-[collapsed=true]/sidebar:hidden">
+                      {item.label}
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+    </SidebarRoot>
   );
 }

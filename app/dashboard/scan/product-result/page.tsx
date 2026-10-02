@@ -1,4 +1,3 @@
-import AppShell from "@/components/dashboard/AppShell";
 import ProductAnalysis from "@/components/scan/ProductAnalysis";
 import { fetchPreferences, fetchProductAnalysis } from "@/lib/api";
 
@@ -14,9 +13,5 @@ export default async function ProductResultPage() {
     fetchPreferences(),
   ]);
 
-  return (
-    <AppShell title="Product Analysis" active="scan">
-      <ProductAnalysis result={result} preferences={preferences} />
-    </AppShell>
-  );
+  return <ProductAnalysis result={result} preferences={preferences} />;
 }
