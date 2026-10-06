@@ -7,6 +7,10 @@ import {
   type UserCollection,
   type UserDocument,
 } from "@/models/User";
+import {
+  getScanModel,
+  type ScanCollection,
+} from "@/models/Scan";
 
 const globalForMongo = globalThis as typeof globalThis & {
   traceeMongoClientPromise?: Promise<MongoClient>;
@@ -14,6 +18,7 @@ const globalForMongo = globalThis as typeof globalThis & {
 
 let productionClientPromise: Promise<MongoClient> | undefined;
 let userCollectionPromise: Promise<UserCollection> | undefined;
+let scanCollectionPromise: Promise<ScanCollection> | undefined;
 
 function getMongoClientPromise(): Promise<MongoClient> {
   const uri = process.env.MONGODB_URI;
@@ -39,6 +44,17 @@ export async function getUserCollection(): Promise<UserCollection> {
   })();
 
   return userCollectionPromise;
+}
+
+export async function getScanCollection(): Promise<ScanCollection> {
+  scanCollectionPromise ??= (async () => {
+    const client = await getMongoClientPromise();
+    const collection = getScanModel(client.db());
+    await collection.createIndex({ userId: 1, createdAt: -1 });
+    return collection;
+  })();
+
+  return scanCollectionPromise;
 }
 
 export async function syncTraceeUser(

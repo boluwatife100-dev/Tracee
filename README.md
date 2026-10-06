@@ -26,7 +26,18 @@ collection. For a local MongoDB server, use:
 MONGODB_URI=mongodb://127.0.0.1:27017/tracee
 ```
 
-Configure the same variable in your deployment environment. Do not commit
+Configure Cloudinary for authenticated scan-photo uploads in `.env.local`:
+
+```env
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+```
+
+The API secret is used only by the server-side signing route. Do not prefix it
+with `NEXT_PUBLIC_` or commit it.
+
+Configure these variables in your deployment environment. Do not commit
 connection strings or credentials.
 
 ## User Model

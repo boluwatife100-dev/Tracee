@@ -2,6 +2,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
+import Head from "next/head";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${manrope.variable} h-full antialiased`}
     >
+      
       <body className="min-h-full flex flex-col bg-white text-forest font-sans">
         <ClerkProvider
           signInUrl="/login"

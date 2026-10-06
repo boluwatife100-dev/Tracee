@@ -1,13 +1,5 @@
-import PlaceholderPage from "@/components/PlaceholderPage";
+import ScanCapture from "@/components/scan/ScanCapture";
 
 export default function ScanPage() {
-  return (
-    <PlaceholderPage
-      kicker="New Scan"
-      title="Scan Screen"
-      description="Camera capture UI coming here."
-      nextHref="/processing"
-      nextLabel="Simulate Capture"
-    />
-  );
+  return <ScanCapture />;
 }
