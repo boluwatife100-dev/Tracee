@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
@@ -12,9 +14,56 @@ import {
 } from "lucide-react";
 
 type ScanMode = "product" | "plant";
-type ScanStatus = "idle" | "reading" | "uploading" | "complete";
+type ScanStatus = "idle" | "reading" | "uploading" | "analyzing" | "complete";
 
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
+const MAX_UPLOAD_IMAGE_SIZE = 3 * 1024 * 1024;
+
+async function compressImage(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    let scale = Math.min(1, 2560 / Math.max(bitmap.width, bitmap.height));
+    while (true) {
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Could not prepare this photo for upload.");
+
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+      for (let quality = 0.86; quality >= 0.5; quality -= 0.12) {
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, "image/jpeg", quality)
+        );
+        if (!blob) throw new Error("Could not prepare this photo for upload.");
+        if (blob.size <= MAX_UPLOAD_IMAGE_SIZE) {
+          const baseName = file.name.replace(/\.[^.]+$/, "") || "scan-photo";
+          return new File([blob], `${baseName}.jpg`, {
+            type: "image/jpeg",
+            lastModified: file.lastModified,
+          });
+        }
+      }
+
+      if (Math.max(canvas.width, canvas.height) <= 320) {
+        throw new Error("This photo could not be reduced below the 3 MB upload limit.");
+      }
+      scale *= 0.8;
+    }
+  } finally {
+    bitmap.close();
+  }
+}
+
+async function getContentHash(file: File): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
+}
 
 function PhotoField({
   id,
@@ -66,7 +115,7 @@ function PhotoField({
               <Camera className="h-5 w-5" aria-hidden="true" />
             </span>
             <span className="text-sm font-semibold">Take photo or choose file</span>
-            <span className="text-xs">JPG, PNG, or WEBP up to 15 MB</span>
+            <span className="text-xs">JPG, PNG, or WEBP up to 15 MB; upload compressed to 3 MB</span>
           </span>
         )}
         <input
@@ -88,9 +137,14 @@ function PhotoField({
   );
 }
 
-async function uploadToCloudinary(file: File): Promise<string> {
+async function uploadToCloudinary(file: File, contentHash: string): Promise<string> {
+  if (file.size > MAX_UPLOAD_IMAGE_SIZE) {
+    throw new Error("The prepared photo is larger than the 3 MB upload limit.");
+  }
   const signatureResponse = await fetch("/api/cloudinary/signature", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contentHash }),
   });
   const signatureData = (await signatureResponse.json()) as {
     apiKey?: string;
@@ -100,8 +154,17 @@ async function uploadToCloudinary(file: File): Promise<string> {
     signature?: string;
     timestamp?: number;
     type?: string;
+    reused?: boolean;
     error?: string;
   };
+
+  if (
+    signatureResponse.ok &&
+    signatureData.reused &&
+    signatureData.publicId
+  ) {
+    return signatureData.publicId;
+  }
 
   if (
     !signatureResponse.ok ||
@@ -137,10 +200,21 @@ async function uploadToCloudinary(file: File): Promise<string> {
   return uploadData.public_id;
 }
 
-export default function ScanCapture() {
-  const [mode, setMode] = useState<ScanMode>("product");
+export default function ScanCapture({
+  initialMode = "product",
+}: {
+  initialMode?: ScanMode;
+}) {
+  const router = useRouter();
+  const [mode, setMode] = useState<ScanMode>(initialMode);
   const [frontPhoto, setFrontPhoto] = useState<File | null>(null);
   const [backPhoto, setBackPhoto] = useState<File | null>(null);
+  const [wholePlantPhoto, setWholePlantPhoto] = useState<File | null>(null);
+  const [closeUpPhoto, setCloseUpPhoto] = useState<File | null>(null);
+  const [undersidePhoto, setUndersidePhoto] = useState<File | null>(null);
+  const [watering, setWatering] = useState("");
+  const [light, setLight] = useState("");
+  const [plantName, setPlantName] = useState("");
   const [status, setStatus] = useState<ScanStatus>("idle");
   const [ocrText, setOcrText] = useState("");
   const [ocrConfidence, setOcrConfidence] = useState<number | null>(null);
@@ -150,9 +224,14 @@ export default function ScanCapture() {
   const [scanId, setScanId] = useState<string | null>(null);
   const [correctionSaved, setCorrectionSaved] = useState(false);
 
-  const isBusy = status === "reading" || status === "uploading";
-  const requiredPhotos = mode === "product" ? [frontPhoto, backPhoto] : [frontPhoto];
-  const canSubmit = requiredPhotos.every(Boolean) && mediaConsent && !isBusy;
+  const isBusy =
+    status === "reading" || status === "uploading" || status === "analyzing";
+  const canSubmit =
+    (mode === "product"
+      ? Boolean(frontPhoto && backPhoto)
+      : Boolean(wholePlantPhoto && closeUpPhoto && watering && light)) &&
+    mediaConsent &&
+    !isBusy;
 
   function updatePhoto(
     setPhoto: (file: File | null) => void,
@@ -162,6 +241,7 @@ export default function ScanCapture() {
     setStatus("idle");
     setOcrText("");
     setOcrConfidence(null);
+    setScanId(null);
 
     if (file && !file.type.startsWith("image/")) {
       setError("Choose an image file.");
@@ -178,7 +258,12 @@ export default function ScanCapture() {
   }
 
   async function handleSubmit() {
-    if (!frontPhoto || (mode === "product" && !backPhoto)) return;
+    if (
+      (mode === "product" && (!frontPhoto || !backPhoto)) ||
+      (mode === "plant" && (!wholePlantPhoto || !closeUpPhoto || !watering || !light))
+    ) {
+      return;
+    }
 
     let recognizedText = "";
     let recognizedConfidence: number | null = null;
@@ -211,10 +296,37 @@ export default function ScanCapture() {
       }
 
       setStatus("uploading");
-      const photoPublicIds = await Promise.all(
-        [frontPhoto, mode === "product" ? backPhoto : null]
-          .filter((file): file is File => file !== null)
-          .map(uploadToCloudinary)
+      const photos: { key: string; file: File }[] =
+        mode === "product"
+          ? [
+              ...(frontPhoto ? [{ key: "front", file: frontPhoto }] : []),
+              ...(backPhoto ? [{ key: "back", file: backPhoto }] : []),
+            ]
+          : [
+              ...(wholePlantPhoto ? [{ key: "whole", file: wholePlantPhoto }] : []),
+              ...(closeUpPhoto ? [{ key: "closeUp", file: closeUpPhoto }] : []),
+              ...(undersidePhoto
+                ? [{ key: "underside", file: undersidePhoto }]
+                : []),
+            ];
+      const uploadsByHash = new Map<string, Promise<string>>();
+      const uploadedPhotos = await Promise.all(
+        photos.map(async ({ key, file }) => {
+          const compressedFile = await compressImage(file);
+          const contentHash = await getContentHash(compressedFile);
+          let upload = uploadsByHash.get(contentHash);
+          if (!upload) {
+            upload = uploadToCloudinary(compressedFile, contentHash);
+            uploadsByHash.set(contentHash, upload);
+          }
+          return { key, contentHash, publicId: await upload };
+        })
+      );
+      const photoPublicIds = Object.fromEntries(
+        uploadedPhotos.map(({ key, publicId }) => [key, publicId])
+      );
+      const photoContentHashes = Object.fromEntries(
+        uploadedPhotos.map(({ key, contentHash }) => [key, contentHash])
       );
 
       const scanResponse = await fetch("/api/scans", {
@@ -223,10 +335,17 @@ export default function ScanCapture() {
         body: JSON.stringify({
           kind: mode,
           mediaConsent: true,
-          photoPublicIds: {
-            front: photoPublicIds[0],
-            ...(mode === "product" ? { back: photoPublicIds[1] } : {}),
-          },
+          photoPublicIds,
+          photoContentHashes,
+          ...(mode === "plant"
+            ? {
+                plantContext: {
+                  watering,
+                  light,
+                  ...(plantName.trim() ? { name: plantName.trim() } : {}),
+                },
+              }
+            : {}),
           ocrText: recognizedText,
           ocrConfidence: recognizedConfidence,
         }),
@@ -238,7 +357,24 @@ export default function ScanCapture() {
       if (!scanResponse.ok) {
         throw new Error(scanData.error ?? "Could not save this scan.");
       }
-      setScanId(scanData.scanId ?? null);
+      const savedScanId = scanData.scanId;
+      if (!savedScanId) throw new Error("The saved scan did not return an ID.");
+      setScanId(savedScanId);
+      if (mode === "plant") {
+        setStatus("analyzing");
+        const diagnosisResponse = await fetch(
+          `/api/scans/${savedScanId}/diagnosis`,
+          { method: "POST" }
+        );
+        const diagnosisData = (await diagnosisResponse.json()) as {
+          error?: string;
+        };
+        if (!diagnosisResponse.ok) {
+          throw new Error(diagnosisData.error ?? "Could not analyze this plant.");
+        }
+        router.push(`/dashboard/my-plant/${savedScanId}`);
+        return;
+      }
       setStatus("complete");
     } catch (caughtError) {
       setStatus("idle");
@@ -277,10 +413,18 @@ export default function ScanCapture() {
 
   function changeMode(nextMode: ScanMode) {
     setMode(nextMode);
+    router.replace(`/dashboard/scan?type=${nextMode}`, { scroll: false });
     setStatus("idle");
     setError("");
     setOcrText("");
     setOcrConfidence(null);
+    setScanId(null);
+    setWholePlantPhoto(null);
+    setCloseUpPhoto(null);
+    setUndersidePhoto(null);
+    setWatering("");
+    setLight("");
+    setPlantName("");
   }
 
   return (
@@ -288,7 +432,7 @@ export default function ScanCapture() {
       <div>
         <h1 className="text-2xl font-bold text-forest sm:text-3xl">New scan</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-forest/70">
-          Capture the package label or a plant photo.
+          Capture a product label or give us the views and context we need to assess a plant.
         </p>
       </div>
 
@@ -327,22 +471,90 @@ export default function ScanCapture() {
         </button>
       </div>
 
-      <div className={`grid gap-5 ${mode === "product" ? "sm:grid-cols-2" : ""}`}>
-        <PhotoField
-          id="scan-front-photo"
-          label={mode === "product" ? "Front of package" : "Plant photo"}
-          file={frontPhoto}
-          onSelect={(file) => updatePhoto(setFrontPhoto, file)}
-        />
-        {mode === "product" ? (
+      {mode === "product" ? (
+        <div className="grid gap-5 sm:grid-cols-2">
+          <PhotoField
+            id="scan-front-photo"
+            label="Front of package"
+            file={frontPhoto}
+            onSelect={(file) => updatePhoto(setFrontPhoto, file)}
+          />
           <PhotoField
             id="scan-back-photo"
             label="Ingredients and details"
             file={backPhoto}
             onSelect={(file) => updatePhoto(setBackPhoto, file)}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <PhotoField
+              id="scan-whole-plant"
+              label="Whole plant"
+              file={wholePlantPhoto}
+              onSelect={(file) => updatePhoto(setWholePlantPhoto, file)}
+            />
+            <PhotoField
+              id="scan-problem-closeup"
+              label="Close-up of the problem"
+              file={closeUpPhoto}
+              onSelect={(file) => updatePhoto(setCloseUpPhoto, file)}
+            />
+            <PhotoField
+              id="scan-leaf-underside"
+              label="Underside of a leaf (optional)"
+              file={undersidePhoto}
+              onSelect={(file) => updatePhoto(setUndersidePhoto, file)}
+            />
+          </div>
+          <section className="grid gap-5 rounded-2xl bg-sage/50 p-5 sm:grid-cols-2">
+            <label className="flex flex-col gap-2 text-sm font-semibold text-forest sm:col-span-2">
+              Plant name (optional)
+              <input
+                type="text"
+                value={plantName}
+                onChange={(event) => setPlantName(event.target.value)}
+                maxLength={100}
+                placeholder="e.g. Monstera deliciosa"
+                className="min-h-11 rounded-lg border border-forest/15 bg-white px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              />
+              <span className="text-xs font-normal text-forest/65">
+                If you know what it is, we&apos;ll use the name as an identification hint.
+              </span>
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-semibold text-forest">
+              How often do you water it?
+              <select
+                value={watering}
+                onChange={(event) => setWatering(event.target.value)}
+                className="min-h-11 rounded-lg border border-forest/15 bg-white px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              >
+                <option value="">Choose an answer</option>
+                <option value="daily">Every day</option>
+                <option value="every_few_days">Every few days</option>
+                <option value="weekly">About once a week</option>
+                <option value="rarely">Less often</option>
+                <option value="unsure">I&apos;m not sure</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-semibold text-forest">
+              What kind of light does it get?
+              <select
+                value={light}
+                onChange={(event) => setLight(event.target.value)}
+                className="min-h-11 rounded-lg border border-forest/15 bg-white px-3 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              >
+                <option value="">Choose an answer</option>
+                <option value="direct">Direct sunlight</option>
+                <option value="bright_indirect">Bright, indirect light</option>
+                <option value="low">Low light</option>
+                <option value="unsure">I&apos;m not sure</option>
+              </select>
+            </label>
+          </section>
+        </>
+      )}
 
       <div className="flex flex-col gap-4 border-t border-forest/10 pt-5">
         <label className="flex cursor-pointer items-start gap-3 text-sm leading-5 text-forest/75">
@@ -371,11 +583,13 @@ export default function ScanCapture() {
             ? `Reading label ${ocrProgress}%`
             : status === "uploading"
               ? "Uploading photos…"
+              : status === "analyzing"
+                ? "Identifying plant and building care plan…"
               : status === "complete"
                 ? "Photos stored"
                 : mode === "product"
                   ? "Read label and store photos"
-                  : "Store plant photo"}
+                  : "Identify plant and check health"}
         </button>
 
         {error ? (
@@ -390,8 +604,16 @@ export default function ScanCapture() {
             <p className="text-sm font-semibold text-forest">
               {mode === "product"
                 ? "Label text extracted. No catalog verdict is available yet."
-                : "Photo stored. Plant diagnosis is not connected yet."}
+                : "Your scan is saved. The analysis could not finish yet."}
             </p>
+            {mode === "plant" && scanId ? (
+              <Link
+                href={`/dashboard/my-plant/${scanId}`}
+                className="inline-flex min-h-10 w-fit items-center rounded-lg bg-forest px-4 text-sm font-semibold text-white hover:bg-forest-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              >
+                Open saved scan
+              </Link>
+            ) : null}
             {mode === "product" ? (
               <>
                 <p className="text-xs text-forest/70">

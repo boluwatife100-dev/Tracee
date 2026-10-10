@@ -1,6 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { ObjectId } from "mongodb";
-import { getScanCollection } from "@/lib/mongodb";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -16,7 +15,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  if (!ObjectId.isValid(id)) {
+  if (!id || id.length > 64) {
     return Response.json({ error: "Invalid scan ID" }, { status: 400 });
   }
 
@@ -38,18 +37,15 @@ export async function PATCH(
   }
 
   try {
-    const scans = await getScanCollection();
-    const result = await scans.updateOne(
-      { _id: new ObjectId(id), userId, kind: "product" },
-      {
-        $set: {
-          ocrText: (body as { ocrText: string }).ocrText,
-          ocrReviewedAt: new Date(),
-        },
-      }
-    );
+    const result = await prisma.scan.updateMany({
+      where: { id, userId, kind: "product" },
+      data: {
+        ocrText: (body as { ocrText: string }).ocrText,
+        ocrReviewedAt: new Date(),
+      },
+    });
 
-    if (!result.matchedCount) {
+    if (!result.count) {
       return Response.json({ error: "Scan not found" }, { status: 404 });
     }
 

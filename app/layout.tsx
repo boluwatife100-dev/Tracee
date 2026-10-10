@@ -18,11 +18,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
+   
       lang="en"
       className={`${manrope.variable} h-full antialiased`}
     >
       
-      <body className="min-h-full flex flex-col bg-white text-forest font-sans">
+      <body className="min-h-full flex flex-col bg-white text-forest font-sans" suppressHydrationWarning={true}>
         <ClerkProvider
           signInUrl="/login"
           signInForceRedirectUrl="/auth/sync"

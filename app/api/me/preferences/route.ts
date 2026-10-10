@@ -1,5 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { syncTraceeUser } from "@/lib/mongodb";
+import { syncTraceeUser } from "@/lib/db";
 
 export const runtime = "nodejs";
 

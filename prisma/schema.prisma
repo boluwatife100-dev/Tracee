@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Clerk-synced account profile and onboarding preferences.
+model User {
+  id                  String    @id // Clerk user id
+  email               String?
+  username            String?
+  firstName           String?
+  lastName            String?
+  imageUrl            String?
+  allergies           String[]
+  dietary             String[]
+  onboardingCompleted Boolean   @default(false)
+  lastSignInAt        DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+// Shared, cacheable facts about a product. Per-user results (e.g. allergens)
+// are NOT stored here: they are computed at read time from `ingredients`.
+model Product {
+  id             String   @id @default(cuid())
+  // Lookup keys, strongest first. gtin is unique; the others are indexed.
+  gtin           String?  @unique
+  nafdacNo       String?
+  nameKey        String? // normalized "brand|name" for fallback matching
+  ingredientHash String? // hash of normalized ingredient text
+  name           String?
+  brand          String?
+  category       String? // "food" | "toothpaste" | "cosmetic" | "drug" | "other"
+  ingredientsRaw String?
+  ingredients    Json? // normalized string[]
+  expiryText     String?
+  verdicts       Json? // { gmo, fluoride, nafdac } each with evidence/confidence/risk/reasons
+  rulesetVersion String?
+  // "ai" = produced by the engines; "admin" = overridden by a reviewer
+  source         String    @default("ai")
+  adminNote      String?
+  reviewedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  scans Scan[]
+
+  @@index([nafdacNo])
+  @@index([nameKey])
+  @@index([ingredientHash])
+}
+
+model Scan {
+  id            String   @id @default(cuid())
+  userId        String // Clerk user id
+  kind          String // "product" | "plant"
+  status        String   @default("pending") // pending | analyzing | analyzed | needs_review | failed | awaiting_catalog | awaiting_plant_diagnosis
+  productId     String?
+  product       Product? @relation(fields: [productId], references: [id])
+  // Cloudinary public ids, e.g. { front, back }
+  photoIds      Json
+  ocrText       String?
+  ocrConfidence Int?
+  ocrReviewedAt DateTime?
+  mediaConsentAt DateTime?
+  plantContext  Json?
+  // Raw structured extraction from Gemini, kept for audit and re-scoring
+  extraction    Json?
+  forced        Boolean  @default(false) // user explicitly asked for a rescan
+  idempotencyKey String? @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  plant     PlantDiagnosis?
+  clearance ClearanceRequest?
+
+  @@index([userId, createdAt])
+}
+
+model ScanImage {
+  id          String   @id @default(cuid())
+  userId      String
+  contentHash String
+  publicId    String
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, contentHash])
+}
+
+model AllergenProfile {
+  userId    String   @id
+  allergens String[] // canonical keys, e.g. "milk", "peanut"
+  updatedAt DateTime @updatedAt
+}
+
+model PlantDiagnosis {
+  id               String     @id @default(cuid())
+  scanId           String     @unique
+  scan             Scan       @relation(fields: [scanId], references: [id])
+  candidates       Json // [{ species, commonName, confidence }]
+  diagnosis        Json? // [{ issue, confidence, evidence }]
+  needsBetterPhoto Boolean    @default(false)
+  summary          String?
+  tasks            CareTask[]
+  createdAt        DateTime   @default(now())
+}
+
+model CareTask {
+  id          String          @id @default(cuid())
+  userId      String
+  diagnosisId String
+  diagnosis   PlantDiagnosis  @relation(fields: [diagnosisId], references: [id])
+  title       String
+  detail      String?
+  dueAt       DateTime?
+  recurrence  String? // e.g. "every 3 days"
+  done        Boolean         @default(false)
+  doneAt      DateTime?
+  createdAt   DateTime        @default(now())
+
+  @@index([userId, done])
+}
+
+model ClearanceRequest {
+  id           String    @id @default(cuid())
+  scanId       String    @unique
+  scan         Scan      @relation(fields: [scanId], references: [id])
+  reason       String // insufficient_evidence | no_catalog_match | user_request
+  status       String    @default("pending") // pending | cleared | rejected | needs_info
+  adminVerdict Json?
+  adminNote    String?
+  reviewedBy   String?
+  createdAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+
+  @@index([status, createdAt])
+}
+
+// Cache of NAFDAC lookups so we do not hit their sites on every scan.
+model NafdacLookup {
+  id        String   @id @default(cuid())
+  queryKey  String   @unique // normalized registration number, or "name:<key>"
+  source    String // "greenbook" | "food_db"
+  found     Boolean
+  records   Json // normalized NafdacRecord[]
+  fetchedAt DateTime @default(now())
+}

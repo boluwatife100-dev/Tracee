@@ -20,7 +20,9 @@ const PAGE_TITLES: Record<string, string> = {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const title = PAGE_TITLES[pathname] ?? "Dashboard";
+  const title =
+    PAGE_TITLES[pathname] ??
+    (pathname.startsWith("/dashboard/my-plant/") ? "Plant Diagnosis" : "Dashboard");
 
   return (
     <SidebarProvider>

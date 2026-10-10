@@ -3,7 +3,7 @@ import Logo from "@/components/ui/Logo";
 import { SignUp } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { isOnboardingComplete } from "@/lib/mongodb";
+import { isOnboardingComplete } from "@/lib/db";
 
 export const metadata = {
   title: "Sign Up — Tracee",

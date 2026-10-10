@@ -1,116 +1,163 @@
-﻿import React from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Scissors, Wind, SprayCan, Droplet } from 'lucide-react'
+import { auth } from "@clerk/nextjs/server";
+import { ArrowRight, Leaf, Plus, ScanSearch } from "lucide-react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import {
+  parsePlantCandidates,
+  parsePlantFindings,
+} from "@/lib/plant-types";
+import { getAuthenticatedScanImageUrl } from "@/lib/scan-image";
 
-const MyPlantPage = () => {
-  return (
-    <div className="max-w-6xl mx-auto w-full p-6 text-gray-800 font-sans ">
-      <div className="mb-6">
-        
-        <h1 className="text-4xl font-bold text-[#0A3225]">Powdery Mildew Detected</h1>
-      </div>
+export const metadata = {
+  title: "My Plant — Tracee",
+  description: "Review your plant diagnoses and care recommendations.",
+};
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
-        <div className="lg:col-span-5 space-y-6">
-          <div className="rounded-xl overflow-hidden shadow-sm h-[320px] relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img 
-              src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS_INgaerw43G_dq-L5PaGLCz37YPD8zjWY-WAmn69b_g&s" 
-              alt="Monstera plant with powdery mildew" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="bg-[#EBF2E5] rounded-xl p-6">
-            <h3 className="font-semibold text-lg text-[#164332] mb-4">Scan Information</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between items-center border-b border-gray-200/50 pb-2">
-                <span className="text-gray-500">Affected Plant</span>
-                <span className="font-medium text-[#164332]">Monstera Deliciosa</span>
-              </div>
-              <div className="flex justify-between items-center border-b border-gray-200/50 pb-2">
-                <span className="text-gray-500">Scan Date</span>
-                <span className="font-medium text-[#164332]">Oct 24, 2026 - 10:24 AM</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500">Assigned Location</span>
-                <span className="font-medium text-[#164332]">Living Room</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="lg:col-span-7 space-y-8">
-          <section>
-            <h2 className="text-xl font-bold text-[#1F3D47] mb-3">What is this?</h2>
-            <p className="text-gray-600 leading-relaxed text-sm">
-              Powdery mildew is a common fungal disease that manifests as white or grayish powdery spots on the surfaces of leaves, stems, and fruits. It thrives in high humidity and moderate temperatures, spreading quickly if not treated promptly.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-bold text-[#1F3D47] mb-4">Key Symptoms Found</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[1, 2, 3, 4].map((item) => (
-                <div key={item}>
-                  <div className="flex items-center mb-1">
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#164332] mr-2"></div>
-                    <h4 className="font-semibold text-sm text-[#1F3D47]">White Powdery Coating</h4>
-                  </div>
-                  <p className="text-xs text-gray-400 ml-4">Covers upper leaf surfaces and restricts photosynthesis</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-bold text-[#1F3D47] mb-4">Recommended Treatment Plan</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col space-y-3 bg-white">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-[#EBF2E5] text-[#164332] rounded-lg"><Scissors className="w-5 h-5" /></div>
-                  <h4 className="font-bold text-sm text-[#1F3D47]">Prune Infected Leaves</h4>
-                </div>
-                <p className="text-xs text-gray-500">Carefully cut away heavily damaged stems and leaves with sanitized shears.</p>
-              </div>
-
-              <div className="border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col space-y-3 bg-white">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-[#EBF2E5] text-[#164332] rounded-lg"><Wind className="w-5 h-5" /></div>
-                  <h4 className="font-bold text-sm text-[#1F3D47]">Improve Airflow</h4>
-                </div>
-                <p className="text-xs text-gray-500">Move your Monstera to a spot with better air circulation to reduce local ambient humidity.</p>
-              </div>
-
-              <div className="border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col space-y-3 bg-white">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-[#EBF2E5] text-[#164332] rounded-lg"><SprayCan className="w-5 h-5" /></div>
-                  <h4 className="font-bold text-sm text-[#1F3D47]">Apply Neem Oil Spray</h4>
-                </div>
-                <p className="text-xs text-gray-500">Thoroughly coat both the tops and undersides of leaves during cool evening hours.</p>
-              </div>
-
-              <div className="border border-gray-100 shadow-sm rounded-xl p-4 flex flex-col space-y-3 bg-white">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-[#EBF2E5] text-[#164332] rounded-lg"><Droplet className="w-5 h-5" /></div>
-                  <h4 className="font-bold text-sm text-[#1F3D47]">Adjust Water Schedule</h4>
-                </div>
-                <p className="text-xs text-gray-500">Water directly at soil level instead of wetting foliage, letting the top inch dry first.</p>
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
-
-      <div className="mt-12 flex flex-col sm:flex-row justify-center items-center gap-4 pt-4 pb-12">
-        <button className="w-full sm:w-[220px] px-8 py-3.5 rounded-xl border-2 border-[#164332] text-[#164332] font-semibold hover:bg-gray-50 transition-colors">
-          Save to My plants
-        </button>
-        <button className="w-full sm:w-[220px] px-8 py-3.5 rounded-xl bg-[#0A3225] text-white font-semibold hover:bg-[#07241a] transition-colors">
-          Start Care Routine
-        </button>
-      </div>
-    </div>
-  )
+function statusLabel(status: string, needsBetterPhoto: boolean): string {
+  if (needsBetterPhoto) return "Need a clearer photo";
+  if (status === "analyzed") return "Care plan ready";
+  if (status === "analyzing") return "Analysis in progress";
+  if (status === "failed") return "Analysis needs retry";
+  return "Scan saved";
 }
 
-export default MyPlantPage
+export default async function MyPlantPage() {
+  const { userId } = await auth();
+  if (!userId) redirect("/login");
+
+  const scans = await prisma.scan.findMany({
+    where: { userId, kind: "plant" },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+    include: {
+      plant: {
+        select: {
+          candidates: true,
+          diagnosis: true,
+          needsBetterPhoto: true,
+          summary: true,
+        },
+      },
+    },
+  });
+
+  return (
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-2xl">
+          <h1 className="text-3xl font-bold tracking-tight text-forest sm:text-4xl">
+            My plant scans
+          </h1>
+          <p className="mt-3 text-base leading-7 text-forest/70">
+            Your past identifications, health checks, and care plans in one place.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/scan?type=plant"
+          className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-forest px-5 text-sm font-semibold text-white transition-colors hover:bg-forest-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Scan a plant
+        </Link>
+      </header>
+
+      {scans.length === 0 ? (
+        <section className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-dashed border-forest/20 bg-sage/30 px-6 py-12 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-mint text-forest">
+            <ScanSearch className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <h2 className="mt-5 text-lg font-semibold text-forest">
+            Your plant journal starts here
+          </h2>
+          <p className="mt-2 max-w-md text-sm leading-6 text-forest/70">
+            Add a whole-plant photo and a close-up of the issue. We&apos;ll compare
+            identification and health results before suggesting next steps.
+          </p>
+          <Link
+            href="/dashboard/scan?type=plant"
+            className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest/20 bg-white px-4 text-sm font-semibold text-forest transition-colors hover:bg-sage focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          >
+            Start your first scan
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </section>
+      ) : (
+        <section aria-label="Past plant scans" className="grid gap-4">
+          {scans.map((scan) => {
+            const candidates = parsePlantCandidates(scan.plant?.candidates);
+            const findings = parsePlantFindings(scan.plant?.diagnosis);
+            const plantName =
+              candidates[0]?.commonName ?? candidates[0]?.species ?? "Plant scan";
+            const concern = findings.diseases[0]?.name;
+            const imageUrl = getAuthenticatedScanImageUrl(scan.photoIds);
+            const label = statusLabel(
+              scan.status,
+              scan.plant?.needsBetterPhoto ?? false
+            );
+
+            return (
+              <article
+                key={scan.id}
+                className="grid overflow-hidden rounded-2xl border border-forest/10 bg-white shadow-sm transition-shadow hover:shadow-md sm:grid-cols-[170px_1fr]"
+              >
+                <div className="relative min-h-44 bg-sage sm:min-h-full">
+                  {imageUrl ? (
+                    // Cloudinary scan images are authenticated and use short-lived signed URLs.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={imageUrl}
+                      alt={`${plantName} scan`}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-forest/35">
+                      <Leaf className="h-12 w-12" aria-hidden="true" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex min-w-0 flex-col gap-4 p-5 sm:p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="truncate text-lg font-semibold text-forest">
+                        {plantName}
+                      </h2>
+                      <p className="mt-1 text-sm text-forest/65">
+                        {concern ?? (scan.plant ? "No clear disease candidate" : "Diagnosis pending")}
+                      </p>
+                    </div>
+                    <span className="inline-flex min-h-7 items-center rounded-full bg-mint px-3 text-xs font-semibold text-forest">
+                      {label}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-forest/60">
+                    <span>
+                      {candidates.length
+                        ? `${Math.round(candidates[0].confidence * 100)}% top species match`
+                        : "Species match pending"}
+                    </span>
+                    <time dateTime={scan.createdAt.toISOString()}>
+                      {new Intl.DateTimeFormat("en", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }).format(scan.createdAt)}
+                    </time>
+                  </div>
+
+                  <Link
+                    href={`/dashboard/my-plant/${scan.id}`}
+                    className="inline-flex min-h-10 w-fit items-center gap-2 text-sm font-semibold text-forest underline decoration-forest/30 underline-offset-4 transition-colors hover:decoration-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                  >
+                    View scan results
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      )}
+    </div>
+  );
+}

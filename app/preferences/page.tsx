@@ -1,7 +1,7 @@
 import Personalization from "@/components/preferences/Personalization";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { isOnboardingComplete, syncTraceeUser } from "@/lib/mongodb";
+import { isOnboardingComplete, syncTraceeUser } from "@/lib/db";
 
 export const metadata = {
   title: "Your Preferences — Tracee",
