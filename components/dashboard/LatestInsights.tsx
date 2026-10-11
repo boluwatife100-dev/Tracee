@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect, useState, type ComponentType } from "react";
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import {
   ChevronRightIcon,
   BoxIcon,
@@ -35,7 +40,75 @@ const ACTIVITY = [
   },
 ];
 
+type InsightItem = {
+  id?: string;
+  title: string;
+  detail: string;
+  time: string;
+  tag: string | null;
+  icon: ComponentType<{ className?: string }>;
+};
+
+type RecentCheck = {
+  id: string;
+  state: string;
+  nafdacRegNumber: string | null;
+  extractedFields: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+const AUTHENTICITY_LABELS: Record<string, string> = {
+  VERIFIED_REGISTRATION: "Registration details matched",
+  MISMATCH: "Registration details differ",
+  NOT_FOUND: "Registration number not found",
+  INSUFFICIENT_EVIDENCE: "Could not be verified",
+};
+
 export default function LatestInsights() {
+  const [items, setItems] = useState<InsightItem[]>(ACTIVITY);
+  const [historyError, setHistoryError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRecentChecks() {
+      const response = await fetch("/api/authenticity/history");
+      if (!response.ok) {
+        throw new Error("Recent authenticity checks could not be loaded.");
+      }
+      const data = (await response.json()) as { checks?: RecentCheck[] };
+      if (cancelled || !data.checks?.length) return;
+      const recent = data.checks.slice(0, 3).map((check) => {
+        const name = check.extractedFields?.productName;
+        return {
+          id: check.id,
+          title: AUTHENTICITY_LABELS[check.state] ?? "Product check complete",
+          detail: typeof name === "string" ? name : check.nafdacRegNumber ?? "Product label",
+          time: new Date(check.createdAt).toLocaleDateString(),
+          tag: check.state === "VERIFIED_REGISTRATION" ? "Matched" : null,
+          icon: ShieldCheck,
+        };
+      });
+      setItems((current) => [
+        ...recent.filter(
+          (item) => !current.some((currentItem) => currentItem.id === item.id)
+        ),
+        ...current,
+      ]);
+    }
+    void loadRecentChecks().catch((loadError: unknown) => {
+      if (!cancelled) {
+        setHistoryError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Recent authenticity checks could not be loaded."
+        );
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section className="flex flex-col gap-6 rounded-3xl border border-forest/5 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
@@ -48,15 +121,19 @@ export default function LatestInsights() {
           <ChevronRightIcon className="h-4 w-4" />
         </button>
       </div>
+      {historyError ? (
+        <p className="text-xs text-red-700" role="status">{historyError}</p>
+      ) : null}
 
       <ul className="flex flex-col divide-y divide-forest/5">
-        {ACTIVITY.map((item) => {
+        {items.map((item, index) => {
           const Icon = item.icon;
           return (
-            <li
-              key={`${item.title}-${item.time}-${item.detail}`}
-              className="flex items-center gap-4 py-4"
-            >
+            <li key={item.id ?? `${item.title}-${item.time}-${item.detail}-${index}`}>
+              <Link
+                href={item.icon === ShieldCheck ? "/dashboard/authenticity" : "/dashboard/history"}
+                className="flex items-center gap-4 py-4"
+              >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sage text-forest">
                 <Icon className="h-5 w-5" />
               </span>
@@ -76,6 +153,7 @@ export default function LatestInsights() {
               <span className="shrink-0 text-xs font-medium text-gray-400">
                 {item.time}
               </span>
+              </Link>
             </li>
           );
         })}

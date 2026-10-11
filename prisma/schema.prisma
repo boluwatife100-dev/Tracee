@@ -149,3 +149,42 @@ model NafdacLookup {
   records   Json // normalized NafdacRecord[]
   fetchedAt DateTime @default(now())
 }
+
+model AuthenticityCheck {
+  id              String   @id @default(cuid())
+  userId          String
+  imagePublicIds  Json
+  extractedFields Json?
+  matchedRecord   Json?
+  registrySource  String?
+  registryAvailable Boolean?
+  nafdacRegNumber String?
+  barcodeValue    String?
+  aiReview        Json?
+  state           String   @default("INSUFFICIENT_EVIDENCE")
+  status          String   @default("queued") // queued | extracting | looking_up | review_failed | completed
+  reasons         Json
+  idempotencyKey  String
+  mediaConsentAt  DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  reports ProductReport[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@index([nafdacRegNumber])
+}
+
+model ProductReport {
+  id             String            @id @default(cuid())
+  checkId        String
+  check          AuthenticityCheck @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  userId         String
+  note           String
+  extraPhotoId   String?
+  createdAt      DateTime          @default(now())
+
+  @@index([checkId, createdAt])
+  @@index([userId, createdAt])
+}

@@ -5,6 +5,7 @@ import {
   History,
   LayoutDashboard,
   ScanLine,
+  ShieldCheck,
   Sprout,
   UserRound,
   type LucideIcon,
@@ -28,6 +29,11 @@ const NAV_ITEMS: {
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "My Plant", href: "/dashboard/my-plant", icon: Sprout },
   { label: "Scan", href: "/dashboard/scan", icon: ScanLine },
+  {
+    label: "Authenticity",
+    href: "/dashboard/authenticity",
+    icon: ShieldCheck,
+  },
   { label: "History", href: "/dashboard/history", icon: History },
   { label: "Profile", href: "/dashboard/profile", icon: UserRound },
 ];

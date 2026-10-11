@@ -54,6 +54,10 @@ export async function POST(
       ...(typeof storedContext?.name === "string" && storedContext.name.trim()
         ? { name: storedContext.name.trim().slice(0, 100) }
         : {}),
+      ...(typeof storedContext?.leafDescription === "string" &&
+      storedContext.leafDescription.trim()
+        ? { leafDescription: storedContext.leafDescription.trim().slice(0, 1000) }
+        : {}),
     };
     const result = await diagnosePlant(
       {

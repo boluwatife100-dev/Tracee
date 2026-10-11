@@ -17,8 +17,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-   
+    <html suppressHydrationWarning
       lang="en"
       className={`${manrope.variable} h-full antialiased`}
     >

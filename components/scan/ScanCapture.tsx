@@ -16,10 +16,11 @@ import {
 type ScanMode = "product" | "plant";
 type ScanStatus = "idle" | "reading" | "uploading" | "analyzing" | "complete";
 
-const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 3 * 1024 * 1024;
 const MAX_UPLOAD_IMAGE_SIZE = 3 * 1024 * 1024;
+const TARGET_COMPRESSED_IMAGE_SIZE = 1 * 1024 * 1024;
 
-async function compressImage(file: File): Promise<File> {
+export async function compressImage(file: File): Promise<File> {
   const bitmap = await createImageBitmap(file);
   try {
     let scale = Math.min(1, 2560 / Math.max(bitmap.width, bitmap.height));
@@ -39,7 +40,7 @@ async function compressImage(file: File): Promise<File> {
           canvas.toBlob(resolve, "image/jpeg", quality)
         );
         if (!blob) throw new Error("Could not prepare this photo for upload.");
-        if (blob.size <= MAX_UPLOAD_IMAGE_SIZE) {
+        if (blob.size <= TARGET_COMPRESSED_IMAGE_SIZE) {
           const baseName = file.name.replace(/\.[^.]+$/, "") || "scan-photo";
           return new File([blob], `${baseName}.jpg`, {
             type: "image/jpeg",
@@ -49,7 +50,7 @@ async function compressImage(file: File): Promise<File> {
       }
 
       if (Math.max(canvas.width, canvas.height) <= 320) {
-        throw new Error("This photo could not be reduced below the 3 MB upload limit.");
+        throw new Error("This photo could not be optimized for upload.");
       }
       scale *= 0.8;
     }
@@ -58,14 +59,14 @@ async function compressImage(file: File): Promise<File> {
   }
 }
 
-async function getContentHash(file: File): Promise<string> {
+export async function getContentHash(file: File): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0")
   ).join("");
 }
 
-function PhotoField({
+export function PhotoField({
   id,
   label,
   file,
@@ -115,7 +116,7 @@ function PhotoField({
               <Camera className="h-5 w-5" aria-hidden="true" />
             </span>
             <span className="text-sm font-semibold">Take photo or choose file</span>
-            <span className="text-xs">JPG, PNG, or WEBP up to 15 MB; upload compressed to 3 MB</span>
+            <span className="text-xs">JPG, PNG, or WEBP up to 3 MB;</span>
           </span>
         )}
         <input
@@ -137,7 +138,10 @@ function PhotoField({
   );
 }
 
-async function uploadToCloudinary(file: File, contentHash: string): Promise<string> {
+export async function uploadToCloudinary(
+  file: File,
+  contentHash: string
+): Promise<string> {
   if (file.size > MAX_UPLOAD_IMAGE_SIZE) {
     throw new Error("The prepared photo is larger than the 3 MB upload limit.");
   }
@@ -215,6 +219,7 @@ export default function ScanCapture({
   const [watering, setWatering] = useState("");
   const [light, setLight] = useState("");
   const [plantName, setPlantName] = useState("");
+  const [leafDescription, setLeafDescription] = useState("");
   const [status, setStatus] = useState<ScanStatus>("idle");
   const [ocrText, setOcrText] = useState("");
   const [ocrConfidence, setOcrConfidence] = useState<number | null>(null);
@@ -249,7 +254,7 @@ export default function ScanCapture({
       return false;
     }
     if (file && file.size > MAX_IMAGE_SIZE) {
-      setError("Choose an image smaller than 15 MB.");
+      setError("Choose an image no larger than 3 MB.");
       setPhoto(null);
       return false;
     }
@@ -343,6 +348,9 @@ export default function ScanCapture({
                   watering,
                   light,
                   ...(plantName.trim() ? { name: plantName.trim() } : {}),
+                  ...(leafDescription.trim()
+                    ? { leafDescription: leafDescription.trim() }
+                    : {}),
                 },
               }
             : {}),
@@ -425,6 +433,7 @@ export default function ScanCapture({
     setWatering("");
     setLight("");
     setPlantName("");
+    setLeafDescription("");
   }
 
   return (
@@ -437,38 +446,47 @@ export default function ScanCapture({
       </div>
 
       <div
-        className="grid grid-cols-2 border-b border-forest/15"
+        className="grid grid-cols-3 border-b border-forest/15"
         role="tablist"
         aria-label="Scan type"
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "product"}
-          onClick={() => changeMode("product")}
-          className={`inline-flex min-h-12 items-center justify-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
-            mode === "product"
-              ? "border-forest text-forest"
-              : "border-transparent text-forest/55 hover:text-forest"
-          }`}
-        >
-          <ScanLine className="h-4 w-4" aria-hidden="true" />
-          Product
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "plant"}
-          onClick={() => changeMode("plant")}
-          className={`inline-flex min-h-12 items-center justify-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
-            mode === "plant"
-              ? "border-forest text-forest"
-              : "border-transparent text-forest/55 hover:text-forest"
-          }`}
-        >
-          <Sprout className="h-4 w-4" aria-hidden="true" />
-          Plant
-        </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "product"}
+            onClick={() => changeMode("product")}
+            className={`inline-flex min-h-12 items-center justify-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
+              mode === "product"
+                ? "border-forest text-forest"
+                : "border-transparent text-forest/55 hover:text-forest"
+            }`}
+          >
+            <ScanLine className="h-4 w-4" aria-hidden="true" />
+            Product
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={false}
+            onClick={() => router.push("/dashboard/authenticity")}
+            className="inline-flex min-h-12 items-center justify-center gap-2 border-b-2 border-transparent px-3 text-sm font-semibold text-forest/55 transition-colors hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          >
+            Authenticity
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "plant"}
+            onClick={() => changeMode("plant")}
+            className={`inline-flex min-h-12 items-center justify-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
+              mode === "plant"
+                ? "border-forest text-forest"
+                : "border-transparent text-forest/55 hover:text-forest"
+            }`}
+          >
+            <Sprout className="h-4 w-4" aria-hidden="true" />
+            Plant
+          </button>
       </div>
 
       {mode === "product" ? (
@@ -521,6 +539,20 @@ export default function ScanCapture({
               />
               <span className="text-xs font-normal text-forest/65">
                 If you know what it is, we&apos;ll use the name as an identification hint.
+              </span>
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-semibold text-forest sm:col-span-2">
+              What do you notice on the leaves? (optional)
+              <textarea
+                value={leafDescription}
+                onChange={(event) => setLeafDescription(event.target.value)}
+                maxLength={1000}
+                rows={3}
+                placeholder="Describe changes such as yellowing, spots, curling, or anything else you’ve noticed."
+                className="min-h-24 resize-y rounded-lg border border-forest/15 bg-white px-3 py-2 font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              />
+              <span className="text-xs font-normal text-forest/65">
+                Your observations help tailor the diagnosis and care suggestions.
               </span>
             </label>
             <label className="flex flex-col gap-2 text-sm font-semibold text-forest">

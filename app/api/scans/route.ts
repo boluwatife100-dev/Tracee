@@ -12,7 +12,12 @@ type ScanPayload = {
   mediaConsent: true;
   ocrText: string;
   ocrConfidence: number | null;
-  plantContext: { watering: string; light: string; name?: string } | null;
+  plantContext: {
+    watering: string;
+    light: string;
+    name?: string;
+    leafDescription?: string;
+  } | null;
 };
 
 function parseScanPayload(value: unknown, userId: string): ScanPayload | null {
@@ -90,11 +95,15 @@ function parseScanPayload(value: unknown, userId: string): ScanPayload | null {
       const watering = (context as Record<string, string>).watering;
       const light = (context as Record<string, string>).light;
       const name = (context as Record<string, unknown>).name;
+      const leafDescription = (context as Record<string, unknown>).leafDescription;
       if (
         !["daily", "every_few_days", "weekly", "rarely", "unsure"].includes(watering) ||
         !["direct", "bright_indirect", "low", "unsure"].includes(light) ||
         (name !== undefined &&
-          (typeof name !== "string" || name.trim().length > 100))
+          (typeof name !== "string" || name.trim().length > 100)) ||
+        (leafDescription !== undefined &&
+          (typeof leafDescription !== "string" ||
+            leafDescription.trim().length > 1000))
       ) {
         return null;
       }
@@ -103,6 +112,9 @@ function parseScanPayload(value: unknown, userId: string): ScanPayload | null {
         light,
         ...(typeof name === "string" && name.trim()
           ? { name: name.trim() }
+          : {}),
+        ...(typeof leafDescription === "string" && leafDescription.trim()
+          ? { leafDescription: leafDescription.trim() }
           : {}),
       };
     } else {
