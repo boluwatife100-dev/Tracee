@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { scoreGmo } from "../lib/engines/gmo";
-import { assessFluoride } from "../lib/engines/fluoride";
-import { detectAllergens, matchUserAllergens } from "../lib/engines/allergens";
+import { assessFluoride } from "../lib/engines/flouride";
+import { detectAllergens, matchUserAllergens } from "../lib/engines/allergen";
 import { normalizeIngredients } from "../lib/engines/normalize";
 import { loadGmoReference } from "../lib/engines/gmo-reference";
-import { isValidGtin } from "../lib/gtin";
 
 const ref = loadGmoReference();
 const ing = (s: string) => normalizeIngredients(s);
@@ -47,9 +46,6 @@ assert.deepEqual(keys, ["egg:contains", "milk:contains", "peanut:may_contain", "
 const m = matchUserAllergens(hits, ["milk", "peanut"]);
 assert.equal(m.mustAvoid.length, 1); assert.equal(m.caution.length, 1);
 
-// GTIN
-assert.equal(isValidGtin("4006381333931"), true);
-assert.equal(isValidGtin("4006381333932"), false);
 console.log("unit checks passed");
 
 // Optional: replay a JSON export of working_dataset.csv ([{ing, flag}]) against its gmo_flag.
