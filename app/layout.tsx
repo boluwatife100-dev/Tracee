@@ -1,6 +1,8 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
+import Head from "next/head";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -15,12 +17,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
+    <html suppressHydrationWarning
       lang="en"
       className={`${manrope.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-white text-forest font-sans">
-        {children}
+      
+      <body className="min-h-full flex flex-col bg-white text-forest font-sans" suppressHydrationWarning={true}>
+        <ClerkProvider
+          signInUrl="/login"
+          signInForceRedirectUrl="/auth/sync"
+          signUpForceRedirectUrl="/preferences"
+          afterSignOutUrl="/"
+        >
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );

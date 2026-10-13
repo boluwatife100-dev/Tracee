@@ -17,8 +17,8 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-forest/5 bg-white/90 backdrop-blur">
-      <Container className="flex h-16 items-center justify-between sm:h-20">
+    <header className="sticky top-0 z-50 border-b border-forest/5 bg-white backdrop-blur">
+      <Container className="flex h-16 items-center justify-between sm:h-26">
         <Logo />
 
         <nav className="hidden items-center gap-8 lg:flex" aria-label="Main">
@@ -33,11 +33,9 @@ export default function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 lg:flex">
-          <Button href="/signup" variant="ghost">
-            Sign Up
-          </Button>
-          <Button href="/onboarding">Get Started</Button>
+        <div className="hidden items-center gap-8 lg:flex">
+          <Button className="rounded-lg text-sm px-6 py-4 border-primary border" href="/login" variant="ghost">Sign In</Button>
+          <Button className="rounded-lg border text-sm px-6 py-4 bg-primary text-white" href="/signup">Get Started</Button>
         </div>
 
         <button
@@ -69,7 +67,7 @@ export default function Navbar() {
       {open ? (
         <div
           id="mobile-menu"
-          className="border-t border-forest/5 bg-white lg:hidden"
+          className="absolute inset-x-0 top-full border-t border-forest/5 bg-white shadow-lg lg:hidden"
         >
           <Container className="flex flex-col gap-1 py-4">
             {NAV_LINKS.map((link) => (
@@ -82,13 +80,9 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <div className="mt-2 flex flex-col gap-3 border-t border-forest/5 pt-4">
-              <Button href="/signup" variant="secondary" className="w-full">
-                Sign Up
-              </Button>
-              <Button href="/onboarding" className="w-full">
-                Get Started
-              </Button>
+            <div className="mt-2 flex  gap-3 border-t border-primary/50 py-4">
+              <Button href="/login" variant="secondary" className="w-36 hover:text-white hover:bg-primary transition-colors text-center rounded-lg border p-4">Sign In</Button>
+              <Button href="/signup" className="w-36 bg-primary/90 hover:text-white hover:bg-primary transition-colors text-center rounded-lg border p-4 text-white">Get Started</Button>
             </div>
           </Container>
         </div>

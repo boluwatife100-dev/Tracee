@@ -2,6 +2,7 @@ import FeatureRow from "./FeatureRow";
 import PhoneMockup from "@/components/illustrations/PhoneMockup";
 import BasketIllustration from "@/components/illustrations/BasketIllustration";
 import ScanIllustration from "@/components/illustrations/ScanIllustration";
+import Image from "next/image";
 
 export default function ProductAndPlantSections() {
   return (
@@ -10,38 +11,28 @@ export default function ProductAndPlantSections() {
         id="product-check"
         eyebrow="Product Check"
         title="Before you buy it, trace it."
-        body="Point Tracee at any label — food, cosmetics, packaged goods — and get a crystal-clear ingredient breakdown, GMO likelihood, and certification check before it reaches your basket."
-        bullets={[
-          { text: "Full ingredient list, decoded in plain language" },
-          { text: "GMO likelihood and certification verification" },
-          { text: "Instantly flagged concerns tied to your profile" },
-        ]}
-        illustration={<ScanIllustration className="w-full" />}
+        body="Tracee helps you understand what’s behind the products you choose."
+        illustration={<Image src="/traceit.png" alt="Scan Illustration" className="h-auto max-h-96 w-full object-cover lg:max-h-[30rem]" width={500} height={600} />}
       />
 
       <FeatureRow
         flip
         eyebrow="The Scan"
-        title="Turn a quick scan into clear answers"
-        body="Snap, scan, done. In seconds you get a simple safety verdict — safe, cautious, or avoid — with the reasons spelled out and better alternatives suggested."
-        bullets={[
-          { text: "Clear safety verdict with evidence behind it" },
-          { text: "Personalized allergy and sensitivity alerts" },
-          { text: "Smarter alternatives when something isn\u2019t right" },
-        ]}
-        illustration={<PhoneMockup className="w-full" />}
+        title="Turn a quick Scan into clear answers"
+        body="Scan a product and let Tracee identify relevant ingredients, certifications, and potential concerns."
+        illustration={<Image src="/scanproduct.png" alt="Scan Illustration" className="h-auto max-h-96 w-full object-cover lg:max-h-120" width={500} height={600} />}
       />
 
       <FeatureRow
         eyebrow="Shop With Confidence"
-        title="Shop with confidence!"
-        body="Every scan is saved to your history, so you can compare products at a glance and keep a running personal log of everything you trace."
+        title="Shop with Confidence!"
+        body="See the evidence behind each result, understand what it means, and decide what works for you."
         bullets={[
           { text: "Scanned history with quick re-checks" },
           { text: "Compare products side by side" },
           { text: "Share verdicts with family and friends" },
         ]}
-        illustration={<BasketIllustration className="w-full" />}
+        illustration={<Image src="/shopconfidence.png" alt="Shop With Confidence Illustration" className="h-auto max-h-120 object-contain w-full lg:max-h-120" width={500} height={600} />}
       />
     </>
   );

@@ -9,22 +9,49 @@ import {
   AlertIcon,
   BoxIcon,
 } from "@/components/ui/icons";
+import ScanDetailsSheet from "@/components/history/ScanDetailsSheet";
 
 const PAGE_SIZE = 6;
 
-type FilterKey = "all" | "verified" | "high-gmo" | "recent";
+type FilterKey =
+  | "all"
+  | "analyzed"
+  | "processing"
+  | "needs-review"
+  | "failed"
+  | "high-gmo"
+  | "high-fluoride";
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "all", label: "All Products" },
-  { key: "verified", label: "Verified Only" },
+  { key: "analyzed", label: "Analyzed" },
+  { key: "processing", label: "Processing" },
+  { key: "needs-review", label: "Needs Review" },
+  { key: "failed", label: "Failed" },
   { key: "high-gmo", label: "High GMO Risk" },
-  { key: "recent", label: "Recent Scans" },
+  { key: "high-fluoride", label: "High Fluoride Risk" },
 ];
 
-const GMO_STYLES: Record<RiskLevel, string> = {
+const RISK_STYLES: Record<RiskLevel, string> = {
   high: "bg-red-600 text-white",
   medium: "bg-amber-400 text-forest",
   low: "bg-green-600 text-white",
+};
+
+const STATUS_LABELS: Record<ScanHistoryItem["status"], string> = {
+  analyzed: "Analyzed",
+  processing: "Processing",
+  "needs-review": "Needs review",
+  failed: "Failed",
+  saved: "Saved",
+};
+
+const STATUS_STYLES: Record<ScanHistoryItem["status"], string> = {
+  analyzed: "bg-green-50 text-green-700",
+  processing: "bg-blue-50 text-blue-700",
+  "needs-review": "bg-amber-50 text-amber-700",
+  failed: "bg-red-50 text-red-600",
+  saved: "bg-gray-100 text-gray-700",
 };
 
 function ProductPhoto({ item }: { item: ScanHistoryItem }) {
@@ -35,6 +62,7 @@ function ProductPhoto({ item }: { item: ScanHistoryItem }) {
           src={item.imageUrl}
           alt={`${item.productName} package photo`}
           fill
+          unoptimized
           className="object-cover"
         />
       </div>
@@ -57,7 +85,13 @@ function ProductPhoto({ item }: { item: ScanHistoryItem }) {
   );
 }
 
-function HistoryCard({ item }: { item: ScanHistoryItem }) {
+function HistoryCard({
+  item,
+  onViewDetails,
+}: {
+  item: ScanHistoryItem;
+  onViewDetails: () => void;
+}) {
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl border border-forest/10 bg-white shadow-sm">
       <ProductPhoto item={item} />
@@ -75,7 +109,7 @@ function HistoryCard({ item }: { item: ScanHistoryItem }) {
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
               NAFDAC REG
             </span>
-            <span className="text-sm font-bold text-forest">
+            <span className="text-right text-sm font-bold text-forest">
               {item.nafdacRegNo}
             </span>
           </div>
@@ -89,26 +123,44 @@ function HistoryCard({ item }: { item: ScanHistoryItem }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
-          {item.verified ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
-              <CheckIcon className="h-3.5 w-3.5" />
-              Verified
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {item.status !== "processing" ? (
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${STATUS_STYLES[item.status]}`}
+            >
+              {item.status === "analyzed" ? (
+                <CheckIcon className="h-3.5 w-3.5" />
+              ) : (
+                <AlertIcon className="h-3.5 w-3.5" />
+              )}
+              {STATUS_LABELS[item.status]}
             </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600">
-              <AlertIcon className="h-3.5 w-3.5" />
-              Unverified
-            </span>
-          )}
-          <span
-            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${GMO_STYLES[item.gmoRisk]}`}
-          >
-            {item.gmoRisk.toUpperCase()}
-          </span>
+          ) : null}
+          <RiskPill label="GMO" risk={item.gmoRisk} />
+          <RiskPill label="Fluoride" risk={item.fluorideLikelihood} />
         </div>
+
+        <button
+          type="button"
+          onClick={onViewDetails}
+          className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-forest text-sm font-semibold text-white transition-colors hover:bg-forest-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+        >
+          View details
+        </button>
       </div>
     </article>
+  );
+}
+
+function RiskPill({ label, risk }: { label: string; risk: RiskLevel | null }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
+        risk ? RISK_STYLES[risk] : "bg-gray-100 text-gray-600"
+      }`}
+    >
+      {label}: {risk?.toUpperCase() ?? "NOT RATED"}
+    </span>
   );
 }
 
@@ -122,6 +174,7 @@ export default function HistoryView({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [page, setPage] = useState(1);
+  const [detailsItem, setDetailsItem] = useState<ScanHistoryItem | null>(null);
 
   const filtered = items.filter((item) => {
     const matchesQuery =
@@ -130,8 +183,12 @@ export default function HistoryView({
       item.manufacturer.toLowerCase().includes(query.trim().toLowerCase());
     if (!matchesQuery) return false;
 
-    if (filter === "verified") return item.verified;
+    if (filter === "analyzed") return item.status === "analyzed";
+    if (filter === "processing") return item.status === "processing";
+    if (filter === "needs-review") return item.status === "needs-review";
+    if (filter === "failed") return item.status === "failed";
     if (filter === "high-gmo") return item.gmoRisk === "high";
+    if (filter === "high-fluoride") return item.fluorideLikelihood === "high";
     return true;
   });
 
@@ -192,7 +249,11 @@ export default function HistoryView({
       {visible.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((item) => (
-            <HistoryCard key={item.id} item={item} />
+            <HistoryCard
+              key={item.id}
+              item={item}
+              onViewDetails={() => setDetailsItem(item)}
+            />
           ))}
         </div>
       ) : (
@@ -230,6 +291,14 @@ export default function HistoryView({
           </button>
         </div>
       </div>
+
+      {detailsItem ? (
+        <ScanDetailsSheet
+          key={detailsItem.id}
+          scanId={detailsItem.id}
+          onClose={() => setDetailsItem(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,33 +1,46 @@
 import Link from "next/link";
-import { BoxIcon, PlantIcon, HistoryIcon, ArrowRightIcon } from "@/components/ui/icons";
+import {
+  BoxIcon,
+  PlantIcon,
+  HistoryIcon,
+  ArrowRightIcon,
+} from "@/components/ui/icons";
+import { ShieldCheck } from "lucide-react";
 
 const ACTION_CARDS = [
   {
     title: "Scan a Product",
     description: "Check ingredients, certifications, and safety factors.",
     buttonLabel: "Scan Now",
-    href: "/scan",
+    href: "/dashboard/scan",
     icon: BoxIcon,
   },
   {
     title: "Diagnose a Plant",
     description: "Identify disease, deficiencies, and watering needs.",
     buttonLabel: "Scan Plant",
-    href: "/scan/result",
+    href: "/dashboard/scan",
     icon: PlantIcon,
+  },
+  {
+    title: "Authenticity Check",
+    description: "Compare package details with available NAFDAC records.",
+    buttonLabel: "Check a Product",
+    href: "/dashboard/authenticity",
+    icon: ShieldCheck,
   },
   {
     title: "View History",
     description: "Revisit your past scans and saved verdicts.",
     buttonLabel: "View History",
-    href: "/history",
+    href: "/dashboard/history",
     icon: HistoryIcon,
   },
 ];
 
 export default function ActionCards() {
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
+    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
       {ACTION_CARDS.map((card) => {
         const Icon = card.icon;
         return (

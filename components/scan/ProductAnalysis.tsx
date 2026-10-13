@@ -1,352 +1,367 @@
-"use client";
-
-import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import type {
-  ProductAnalysisResult,
-  RiskLevel,
-  UserPreferences,
-} from "@/lib/api";
-import {
-  BoxIcon,
-  DocumentIcon,
-  ChevronRightIcon,
-  CheckIcon,
-  AlertIcon,
-} from "@/components/ui/icons";
+import { AlertTriangle, Check, Info } from "lucide-react";
+import type { ProductAnalysisResult, ProductVerdict } from "@/lib/api";
+import LabelCorrection from "@/components/scan/LabelCorrection";
+import ClearanceRequest from "@/components/scan/ClearanceRequest";
 
-const RISK_STYLES: Record<RiskLevel, string> = {
-  high: "bg-red-600 text-white",
-  medium: "bg-amber-400 text-forest",
-  low: "bg-green-600 text-white",
+const riskLabels = {
+  high: "Higher likelihood",
+  moderate: "Some likelihood",
+  medium: "Some likelihood",
+  low: "Lower likelihood",
 };
 
-const NON_VEGETARIAN = [
-  "gelatin",
-  "beef",
-  "chicken",
-  "pork",
-  "lamb",
-  "fish",
-  "shrimp",
-  "prawn",
-];
-
-function hasIngredient(
-  ingredients: ProductAnalysisResult["ingredients"],
-  term: string
-) {
-  return ingredients.some((ingredient) =>
-    ingredient.name.toLowerCase().includes(term.toLowerCase())
-  );
-}
-
-function isDietaryMet(
-  preference: string,
-  ingredients: ProductAnalysisResult["ingredients"]
-) {
-  const key = preference.toLowerCase();
-  if (key.includes("vegetarian") || key.includes("vegan")) {
-    return !ingredients.some((ingredient) =>
-      NON_VEGETARIAN.some((source) =>
-        ingredient.name.toLowerCase().includes(source)
-      )
-    );
-  }
-  return true;
-}
-
-function ProductPhoto({ result }: { result: ProductAnalysisResult }) {
-  if (result.imageUrl) {
-    return (
-      <div className="relative aspect-[4/3] w-full overflow-hidden">
-        <Image
-          src={result.imageUrl}
-          alt={`${result.productName} package photo`}
-          fill
-          className="object-cover"
-        />
-      </div>
-    );
-  }
+function VerdictSection({
+  title,
+  description,
+  verdict,
+}: {
+  title: string;
+  description: string;
+  verdict: ProductVerdict;
+}) {
+  const label = verdict.risk
+    ? riskLabels[verdict.risk]
+    : verdict.evidence === "insufficient"
+      ? "Not enough label evidence"
+      : "Not determined";
+  const tone = verdict.risk
+    ? verdict.risk === "high"
+      ? "bg-red-100 text-red-900"
+      : verdict.risk === "moderate"
+        ? "bg-amber-100 text-amber-950"
+        : "bg-mint text-forest"
+    : "bg-cream text-forest/75";
 
   return (
-    <div
-      className="aspect-[4/3] w-full"
-      style={{
-        backgroundImage:
-          "conic-gradient(#e5e7eb 90deg, #f3f4f6 90deg 180deg, #e5e7eb 180deg 270deg, #f3f4f6 270deg)",
-        backgroundSize: "24px 24px",
-      }}
-      role="img"
-      aria-label={`${result.productName} image placeholder`}
-    />
-  );
-}
-
-function ProductCard({ result }: { result: ProductAnalysisResult }) {
-  return (
-    <article className="flex flex-col overflow-hidden rounded-3xl border border-forest/10 bg-white">
-      <ProductPhoto result={result} />
-      <div className="flex flex-col gap-5 p-6">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-bold leading-tight text-forest">
-            {result.productName}
-          </h2>
-          <p className="text-sm text-gray-500">{result.manufacturer}</p>
-        </div>
-        <div className="flex items-center justify-between gap-3 border-t border-forest/5 pt-4">
-          <p className="text-sm">
-            <span className="text-gray-500">NAFDAC REG NO: </span>
-            <span className="font-bold text-forest">{result.nafdacRegNo}</span>
+    <section className="rounded-2xl border border-forest/10 bg-white p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-forest">{title}</h2>
+          <p className="mt-1 max-w-prose text-sm leading-6 text-forest/70">
+            {description}
           </p>
-          {result.verified ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
-              <CheckIcon className="h-3.5 w-3.5" />
-              Verified
-            </span>
-          ) : null}
         </div>
-      </div>
-    </article>
-  );
-}
-
-function GmoCard({
-  likelihood,
-}: {
-  likelihood: ProductAnalysisResult["gmoLikelihood"];
-}) {
-  return (
-    <article className="flex flex-col gap-4 rounded-2xl border border-forest/10 bg-white p-6">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-mint text-forest">
-          <BoxIcon className="h-5 w-5" />
+        <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${tone}`}>
+          {label}
         </span>
-        <div className="flex flex-1 items-center justify-between gap-3">
-          <h3 className="text-base font-semibold text-forest">
-            GMO Likelihood
-          </h3>
-          <span
-            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${RISK_STYLES[likelihood.level]}`}
-          >
-            {likelihood.level.toUpperCase()}
-          </span>
-        </div>
       </div>
-      <p className="text-sm leading-relaxed text-gray-500">
-        {likelihood.description}
+      <ul className="mt-4 space-y-2 text-sm leading-6 text-forest/80">
+        {verdict.reasons.map((reason) => (
+          <li key={reason} className="flex gap-2">
+            <Info className="mt-1 h-4 w-4 shrink-0 text-forest/55" aria-hidden="true" />
+            <span>{reason}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-xs text-forest/60">
+        Label-based estimate; it is not a laboratory test.
       </p>
-    </article>
-  );
-}
-
-function IngredientsCard({
-  ingredients,
-}: {
-  ingredients: ProductAnalysisResult["ingredients"];
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <article className="flex flex-col gap-3 rounded-2xl border border-forest/10 bg-white p-6">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-mint text-forest">
-          <DocumentIcon className="h-5 w-5" />
-        </span>
-        <h3 className="flex-1 text-base font-semibold text-forest">
-          Detected Ingredients
-        </h3>
-        <button
-          type="button"
-          onClick={() => setExpanded((value) => !value)}
-          aria-expanded={expanded}
-          aria-label={expanded ? "Hide ingredients" : "Show ingredients"}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-forest/60 transition-colors hover:bg-forest/5 hover:text-forest"
-        >
-          <ChevronRightIcon
-            className={`h-4 w-4 transition-transform ${
-              expanded ? "rotate-90" : ""
-            }`}
-          />
-        </button>
-      </div>
-
-      {expanded ? (
-        <ul className="flex flex-col divide-y divide-forest/5">
-          {ingredients.map((ingredient) => (
-            <li key={ingredient.name} className="flex flex-col gap-0.5 py-2.5">
-              <span className="text-sm font-semibold text-forest">
-                {ingredient.name}
-              </span>
-              {ingredient.note ? (
-                <span className="text-xs leading-relaxed text-gray-500">
-                  {ingredient.note}
-                </span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm leading-relaxed text-gray-500">
-          {ingredients.map((ingredient) => ingredient.name).join(", ")}
-        </p>
-      )}
-    </article>
-  );
-}
-
-function OriginalityCard({
-  result,
-}: {
-  result: ProductAnalysisResult;
-}) {
-  return (
-    <article className="flex flex-col gap-2 rounded-2xl border border-forest/10 bg-white p-6">
-      <h3 className="text-base font-semibold text-forest">
-        Check for Originality
-      </h3>
-      <p className="text-sm">
-        <span className="text-gray-500">NAFDAC REG NO: </span>
-        <span className="font-bold text-forest">{result.nafdacRegNo}</span>
-      </p>
-    </article>
-  );
-}
-
-function PreferencesCard({
-  preferences,
-  result,
-}: {
-  preferences: UserPreferences;
-  result: ProductAnalysisResult;
-}) {
-  const allergyRows = preferences.allergies.map((allergy) => ({
-    name: allergy,
-    found: hasIngredient(result.ingredients, allergy),
-  }));
-  const dietaryRows = preferences.dietary.map((preference) => ({
-    name: preference,
-    suitable: isDietaryMet(preference, result.ingredients),
-  }));
-
-  return (
-    <article className="flex flex-col gap-5 rounded-2xl border border-forest/10 bg-white p-6">
-      <h3 className="text-base font-semibold text-forest">
-        Your Preferences
-      </h3>
-
-      <div className="flex flex-col gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Allergies
-        </p>
-        <ul className="flex flex-col gap-2.5">
-          {allergyRows.map((row) => (
-            <li key={row.name} className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-forest">
-                {row.name}
-              </span>
-              {row.found ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600">
-                  <AlertIcon className="h-3.5 w-3.5" />
-                  Found
-                </span>
-              ) : (
-                <span className="text-xs font-medium text-gray-400">
-                  Not found
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="h-px w-full bg-forest/5" />
-
-      <div className="flex flex-col gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Dietary Preferences
-        </p>
-        <ul className="flex flex-col gap-2.5">
-          {dietaryRows.map((row) => (
-            <li key={row.name} className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-forest">
-                {row.name}
-              </span>
-              {row.suitable ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
-                  <CheckIcon className="h-3.5 w-3.5" />
-                  Suitable
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600">
-                  <AlertIcon className="h-3.5 w-3.5" />
-                  Not suitable
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </article>
+    </section>
   );
 }
 
 export default function ProductAnalysis({
   result,
-  preferences,
+  hideGmo = false,
+  hideFluoride = false,
+  hideAllergens = false,
+  hideDietary = false,
+  embedded = false,
 }: {
   result: ProductAnalysisResult;
-  preferences: UserPreferences;
+  hideGmo?: boolean;
+  hideFluoride?: boolean;
+  hideAllergens?: boolean;
+  hideDietary?: boolean;
+  embedded?: boolean;
 }) {
+  const { allergens } = result;
+  const hasReadableIngredients = result.ingredients.length > 0;
+  const Wrapper: "div" | "main" = embedded ? "div" : "main";
+
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8">
-      <Link
-        href="/scan"
-        className="inline-flex items-center gap-2 text-sm font-medium text-forest transition-opacity hover:opacity-70"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-4 w-4"
-          aria-hidden="true"
+    <Wrapper
+      className={
+        embedded
+          ? "flex w-full flex-col gap-7"
+          : "mx-auto flex w-full max-w-6xl flex-col gap-7 px-4 py-8 sm:px-6 sm:py-10"
+      }
+    >
+      <header className="flex flex-col gap-2">
+        {!embedded ? (
+          <Link
+            href="/dashboard/scan"
+            className="w-fit text-sm font-medium text-forest/65 underline decoration-forest/30 underline-offset-4 hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-forest"
+          >
+            Back to scans
+          </Link>
+        ) : null}
+        <h1 className="text-3xl font-bold leading-tight text-forest sm:text-4xl">
+          {result.productName}
+        </h1>
+        <p className="max-w-2xl text-sm leading-6 text-forest/70">
+          A plain-language reading of the package label. Ingredient-reading
+          confidence: {Math.round(result.ingredientConfidence * 100)}%.
+        </p>
+      </header>
+
+      {result.alerts.length > 0 ? (
+        <section
+          role="alert"
+          aria-live="assertive"
+          className="rounded-2xl border-2 border-red-700/30 bg-red-50 p-4 sm:p-5"
         >
-          <path d="M19 12H5M12 19l-7-7 7-7" />
-        </svg>
-        Back
-      </Link>
+          <div className="flex gap-3">
+            <AlertTriangle
+              className="mt-0.5 h-5 w-5 shrink-0 text-red-700"
+              aria-hidden="true"
+            />
+            <div className="flex flex-col gap-3">
+              <h2 className="text-sm font-bold text-red-900">
+                Heads up — this product may not be right for you
+              </h2>
+              <ul className="flex flex-col gap-2">
+                {result.alerts.map((alert, index) => (
+                  <li
+                    key={`${alert.kind}-${alert.title}-${index}`}
+                    className="text-sm leading-6 text-red-950"
+                  >
+                    <span className="font-semibold">{alert.title}.</span>{" "}
+                    {alert.detail}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
-      <div className="grid items-start gap-6 lg:grid-cols-3">
-        <ProductCard result={result} />
+      {result.analysisWarnings.length > 0 ? (
+        <aside
+          className="rounded-2xl border border-amber-900/15 bg-amber-50 p-4 text-sm text-amber-950"
+          role="status"
+        >
+          <div className="flex gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <ul className="space-y-1">
+              {result.analysisWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+      ) : null}
 
-        <div className="flex flex-col gap-6">
-          <GmoCard likelihood={result.gmoLikelihood} />
-          <IngredientsCard ingredients={result.ingredients} />
-          <OriginalityCard result={result} />
+      {!hideGmo || !hideFluoride ? (
+        <div
+          className={`grid gap-4 ${
+            !hideGmo && !hideFluoride ? "md:grid-cols-2" : ""
+          }`}
+        >
+          {!hideGmo ? (
+            <VerdictSection
+              title="GMO likelihood"
+              description="Estimated from ingredients that may come from GM crops. This is not proof that the product contains GM material."
+              verdict={result.gmoLikelihood}
+            />
+          ) : null}
+          {!hideFluoride ? (
+            <VerdictSection
+              title="Fluoride on the label"
+              description="Checks for fluoride ingredients or a fluoride-free claim in the readable label text."
+              verdict={result.fluorideLikelihood}
+            />
+          ) : null}
         </div>
+      ) : null}
 
-        <PreferencesCard preferences={preferences} result={result} />
-      </div>
+      {!hideAllergens || !hideDietary ? (
+        <section className="rounded-2xl border border-forest/10 bg-white p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-forest">
+                Your personalized checks
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-forest/70">
+                Choose which saved-preference checks appear in reports from your
+                profile settings.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/profile"
+              className="text-sm font-semibold text-forest underline decoration-forest/30 underline-offset-4 hover:decoration-forest focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-forest"
+            >
+              Edit profile
+            </Link>
+          </div>
 
-      <div className="flex justify-end gap-3">
-        <Link
-          href="/scan"
-          className="inline-flex h-12 items-center justify-center rounded-xl border border-forest bg-white px-6 text-sm font-semibold text-forest transition-colors hover:bg-forest/5"
-        >
-          Scan another Product
-        </Link>
-        <button
-          type="button"
-          className="inline-flex h-12 items-center justify-center rounded-xl bg-forest px-6 text-sm font-semibold text-white transition-colors hover:bg-forest-dark"
-        >
-          Save Analysis
-        </button>
-      </div>
-    </div>
+          <div
+            className={`mt-5 grid gap-6 ${
+              !hideAllergens && !hideDietary ? "sm:grid-cols-2" : ""
+            }`}
+          >
+            {!hideAllergens ? (
+              <div>
+                <h3 className="text-sm font-semibold text-forest">Allergies</h3>
+                {!hasReadableIngredients ? (
+                  <p className="mt-2 text-sm leading-6 text-forest/70">
+                    We could not read enough ingredients to check your saved
+                    allergies.
+                  </p>
+                ) : allergens.savedAllergies.length === 0 ? (
+                  <p className="mt-2 text-sm leading-6 text-forest/70">
+                    No allergies are saved in your profile.
+                  </p>
+                ) : allergens.matches.mustAvoid.length > 0 ||
+                  allergens.matches.caution.length > 0 ? (
+                  <ul className="mt-2 space-y-2 text-sm leading-6 text-forest/80">
+                    {allergens.matches.mustAvoid.map((hit) => (
+                      <li
+                        key={`${hit.allergen}-${hit.tier}`}
+                        className="flex gap-2"
+                      >
+                        <AlertTriangle
+                          className="mt-1 h-4 w-4 shrink-0 text-red-700"
+                          aria-hidden="true"
+                        />
+                        <span>
+                          <strong>{hit.label}</strong> appears as “
+                          {hit.matchedTerm}” in the ingredients.
+                        </span>
+                      </li>
+                    ))}
+                    {allergens.matches.caution.map((hit) => (
+                      <li
+                        key={`${hit.allergen}-${hit.tier}`}
+                        className="flex gap-2"
+                      >
+                        <Info
+                          className="mt-1 h-4 w-4 shrink-0 text-amber-800"
+                          aria-hidden="true"
+                        />
+                        <span>
+                          The label says “may contain” {hit.label.toLowerCase()}.
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 flex gap-2 text-sm leading-6 text-forest/75">
+                    <Check
+                      className="mt-1 h-4 w-4 shrink-0 text-forest"
+                      aria-hidden="true"
+                    />
+                    No saved allergens were found in the readable ingredient list.
+                  </p>
+                )}
+                {allergens.matches.otherPresent.length > 0 ? (
+                  <p className="mt-3 text-xs leading-5 text-forest/60">
+                    Other allergen terms found:{" "}
+                    {allergens.matches.otherPresent
+                      .map((hit) => hit.label)
+                      .join(", ")}
+                    .
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {!hideDietary ? (
+              <div>
+                <h3 className="text-sm font-semibold text-forest">
+                  Eating preferences
+                </h3>
+                {result.dietaryAssessments.length > 0 ? (
+                  <ul className="mt-2 space-y-3">
+                    {result.dietaryAssessments.map((assessment) => (
+                      <li
+                        key={assessment.preference}
+                        className="text-sm leading-6"
+                      >
+                        <span className="font-semibold text-forest">
+                          {assessment.preference}:{" "}
+                        </span>
+                        <span className="text-forest/75">
+                          {assessment.status === "possible_conflict"
+                            ? "possible conflict"
+                            : assessment.status === "no_obvious_conflict"
+                              ? "no obvious conflict"
+                              : "unclear from the label"}
+                          {" — "}
+                          {assessment.explanation}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm leading-6 text-forest/70">
+                    No eating preferences are saved in your profile.
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+          <p className="mt-5 text-xs leading-5 text-forest/60">
+            Label checks can miss undeclared ingredients or cross-contact. They
+            cannot guarantee that a product is safe for you.
+          </p>
+        </section>
+      ) : null}
+
+      <section className="rounded-2xl border border-forest/10 bg-white p-5 sm:p-6">
+        <div>
+          <h2 className="text-lg font-semibold text-forest">
+            Ingredients, in plain language
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-forest/70">
+            AI explanations use only the ingredients read from this package.
+            Where a source is not stated, we say so rather than guess.
+          </p>
+        </div>
+        {result.ingredients.length > 0 ? (
+          <ol className="mt-4 divide-y divide-forest/10">
+            {result.ingredients.map((ingredient, index) => (
+              <li
+                key={`${ingredient.name}-${index}`}
+                className="grid gap-1 py-4 sm:grid-cols-[minmax(10rem,0.7fr)_1.3fr]"
+              >
+                <div>
+                  <h3 className="font-semibold text-forest">{ingredient.name}</h3>
+                  <p className="mt-1 text-xs font-medium text-forest/55">
+                    {ingredient.role}
+                  </p>
+                </div>
+                <p className="text-sm leading-6 text-forest/75">
+                  {ingredient.explanation}
+                </p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="mt-4 rounded-xl bg-cream p-4 text-sm leading-6 text-forest/75">
+            No ingredient list could be read confidently. The report will not
+            guess at ingredients or mark the product low-risk.
+          </p>
+        )}
+      </section>
+
+      <ClearanceRequest scanId={result.id} clearance={result.clearance} />
+
+      {!embedded ? (
+        <details className="rounded-2xl border border-forest/10 bg-cream/65 p-5">
+          <summary className="cursor-pointer text-sm font-semibold text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
+            Review or correct the text read from the package
+          </summary>
+          <p className="mt-3 max-w-prose text-sm leading-6 text-forest/70">
+            Automatic text is hidden because it may be hard to read. Type out all
+            ingredients exactly as they appear on the label, including sub-ingredients
+            and any “may contain” statement. Save your text to rebuild the report.
+            Leave it blank if you cannot read the label.
+          </p>
+          <LabelCorrection scanId={result.id} />
+        </details>
+      ) : null}
+    </Wrapper>
   );
 }

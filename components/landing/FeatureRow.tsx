@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import Container from "@/components/ui/Container";
+import Button from "../ui/Button";
+import { ArrowRightIcon } from "../ui/icons";
 
 export default function FeatureRow({
   eyebrow,
@@ -19,55 +21,29 @@ export default function FeatureRow({
   id?: string;
 }) {
   return (
-    <section id={id} className="bg-white py-16 sm:py-20 lg:py-24">
+    <section id={id} className="bg-white py-4">
       <Container
-        className={`grid items-center gap-12 lg:grid-cols-2 lg:gap-16 ${
+        className={`grid max-w-6xl items-center gap-6 lg:grid-cols-2 lg:gap-10 ${
           flip ? "lg:[&>*:first-child]:order-2" : ""
         }`}
       >
         <div className="flex flex-col items-start gap-6">
-          {eyebrow ? (
-            <span className="inline-flex items-center rounded-full bg-sage px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-forest">
-              {eyebrow}
-            </span>
-          ) : null}
-          <h2 className="max-w-xl text-3xl font-extrabold leading-tight text-forest sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
+          
+          <h2 className="text-4xl font-extrabold leading-tight text-primary md:text-5xl lg:text-[64px] lg:leading-[1.15]">
             {title}
           </h2>
           <p className="max-w-lg text-base leading-relaxed text-gray-600 sm:text-lg">
             {body}
           </p>
-          {bullets.length > 0 ? (
-            <ul className="flex flex-col gap-3">
-              {bullets.map((bullet) => (
-                <li
-                  key={bullet.text}
-                  className="flex items-start gap-3 text-sm font-semibold text-gray-700 sm:text-base"
-                >
-                  <svg
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="mt-0.5 h-4 w-4 shrink-0 text-forest"
-                    aria-hidden="true"
-                  >
-                    <circle cx="8" cy="8" r="7" fill="#eaf3de" />
-                    <path
-                      d="M5 8l2 2 4-4"
-                      stroke="#003126"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  {bullet.text}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          <Button className="flex gap-2 items-center border border-primary rounded-2xl px-4 py-2" variant="ghost" href="/about" >
+          Learn More
+          <ArrowRightIcon className="ml-2 h-4 w-4" aria-hidden="true" />
+        </Button>
+        
         </div>
+        
 
-        <div className="mx-auto w-full max-w-sm lg:max-w-md">
+        <div className="mx-auto w-full max-w-lg lg:mx-0">
           {illustration}
         </div>
       </Container>

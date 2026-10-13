@@ -129,136 +129,173 @@ export const DEMO_USERNAME = "Amber";
 
 /** Save the user's personalization preferences. */
 export async function savePreferences(
-  _selection: PreferenceSelection
+  selection: PreferenceSelection
 ): Promise<void> {
-  // TODO(backend): PUT `${API_BASE_URL}/me/preferences`
-  return;
+  const response = await fetch("/api/me/preferences", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(selection),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to save preferences.");
+  }
 }
-
-export type TreatmentAction = "prune" | "airflow" | "spray" | "water";
-
-export type TreatmentStep = {
-  title: string;
-  description: string;
-  action: TreatmentAction;
-};
-
-export type PlantScanResult = {
-  id: string;
-  diagnosis: string;
-  plantName: string;
-  summary: string;
-  symptoms: { name: string; detail: string }[];
-  treatment: TreatmentStep[];
-  scanDate: string;
-  assignedLocation: string;
-  imageUrl: string;
-};
-
-/** Fetch a completed plant scan result by id. */
-export async function fetchPlantScan(_id = "demo"): Promise<PlantScanResult> {
-  // TODO(backend): GET `${API_BASE_URL}/scans/${_id}`
-  return placeholderPlantScan;
-}
-
-const placeholderPlantScan: PlantScanResult = {
-  id: "scan-demo",
-  diagnosis: "Powdery Mildew Detected",
-  plantName: "Monstera Deliciosa",
-  summary:
-    "Powdery mildew is a common fungal disease that shows up as a chalky white coating on leaves and stems. It thrives in warm, humid rooms with poor airflow, and spreads quickly from leaf to leaf when left untreated.",
-  symptoms: [
-    {
-      name: "White powdery patches",
-      detail: "Fuzzy white coating on the upper leaf surfaces",
-    },
-    {
-      name: "Yellowing leaves",
-      detail: "Leaves fade and lose their deep green color",
-    },
-    {
-      name: "Curled or distorted growth",
-      detail: "New shoots twist as the fungus spreads",
-    },
-    {
-      name: "Stunted growth",
-      detail: "The plant slows or stops producing new leaves",
-    },
-  ],
-  treatment: [
-    {
-      title: "Prune Infected Leaves",
-      description:
-        "Trim affected foliage with sterilized shears to slow the spread.",
-      action: "prune",
-    },
-    {
-      title: "Improve Airflow",
-      description:
-        "Space plants apart and ventilate the room so leaves dry faster.",
-      action: "airflow",
-    },
-    {
-      title: "Apply Treatment Spray",
-      description:
-        "Use a fungicide or baking soda mix, following the label directions.",
-      action: "spray",
-    },
-    {
-      title: "Adjust Watering",
-      description:
-        "Water at the base of the plant and avoid wetting the leaves.",
-      action: "water",
-    },
-  ],
-  scanDate: "Sep 21, 2026",
-  assignedLocation: "Indoor — Living Room",
-  imageUrl: "",
-};
 
 export type RiskLevel = "high" | "medium" | "low";
+
+/**
+ * An admin clearance record attached to a scan. A scan that could not be
+ * assessed confidently, or that a person explicitly sent for review, carries
+ * one of these so it appears in the admin review queue.
+ */
+export type ClearanceInfo = {
+  id: string;
+  status: string; // pending | cleared | rejected | needs_info
+  reason: string; // insufficient_evidence | no_catalog_match | user_request
+};
 
 export type ProductAnalysisResult = {
   id: string;
   productName: string;
-  manufacturer: string;
-  nafdacRegNo: string;
-  verified: boolean;
-  gmoLikelihood: {
-    level: RiskLevel;
-    description: string;
+  ingredientConfidence: number;
+  extractedText: { inferred: string };
+  gmoLikelihood: ProductVerdict;
+  fluorideLikelihood: ProductVerdict;
+  allergens: {
+    hits: {
+      allergen: string;
+      label: string;
+      matchedTerm: string;
+      ingredient: string;
+      tier: "contains" | "may_contain";
+    }[];
+    matches: {
+      mustAvoid: ProductAnalysisResult["allergens"]["hits"];
+      caution: ProductAnalysisResult["allergens"]["hits"];
+      otherPresent: ProductAnalysisResult["allergens"]["hits"];
+    };
+    savedAllergies: string[];
   };
-  ingredients: { name: string; note?: string }[];
+  dietaryAssessments: {
+    preference: string;
+    status: "possible_conflict" | "no_obvious_conflict" | "unclear";
+    explanation: string;
+  }[];
+  savedDietaryPreferences: string[];
+  alerts: ProductAlert[];
+  ingredients: {
+    name: string;
+    explanation: string;
+    role: string;
+  }[];
+  analysisWarnings: string[];
   imageUrl: string;
+  clearance: ClearanceInfo | null;
+};
+
+export type ProductVerdict = {
+  evidence: "sufficient" | "partial" | "insufficient";
+  confidence: number;
+  risk: "high" | "moderate" | "low" | null;
+  state: string;
+  reasons: string[];
+};
+
+/**
+ * A safety-relevant match between a product and the signed-in user's saved
+ * preferences. Rendered prominently so a conflict is never missed.
+ */
+export type ProductAlert = {
+  kind: "allergen" | "dietary";
+  severity: "high" | "medium";
+  title: string;
+  detail: string;
 };
 
 /** Fetch a completed product scan result by id. */
-export async function fetchProductAnalysis(
-  _id = "demo"
-): Promise<ProductAnalysisResult> {
-  // TODO(backend): GET `${API_BASE_URL}/scans/${_id}`
-  return placeholderProductAnalysis;
+export async function fetchProductAnalysis(id = "demo"): Promise<ProductAnalysisResult> {
+  if (id === "demo") return placeholderProductAnalysis;
+  const res = await fetch(`${API_BASE_URL}/scans/${id}/result`);
+  if (!res.ok) throw new Error("Failed to load the product report.");
+  return res.json();
 }
 
 const placeholderProductAnalysis: ProductAnalysisResult = {
   id: "scan-product-demo",
   productName: "Golden Harvest Corn Flakes",
-  manufacturer: "NutriGrain Foods Ltd.",
-  nafdacRegNo: "A1-4738",
-  verified: true,
-  gmoLikelihood: {
-    level: "high",
-    description:
-      "Corn derivatives in this lot show a high likelihood of genetically modified origin based on sourcing region and ingredient records.",
+  ingredientConfidence: 0.9,
+  extractedText: {
+    inferred: "corn, sugar, vegetable oil, soy lecithin, sea salt",
   },
+  gmoLikelihood: {
+    evidence: "partial",
+    confidence: 0.9,
+    risk: "high",
+    state: "likelihood_from_ingredients",
+    reasons: [
+      "Corn- and soy-derived ingredients are listed. This is an ingredient-based likelihood, not proof of GM content.",
+    ],
+  },
+  fluorideLikelihood: {
+    evidence: "partial",
+    confidence: 0.9,
+    risk: null,
+    state: "no_fluoride_term_found",
+    reasons: [
+      "No fluoride term was found in the readable text. This does not prove the product is fluoride-free.",
+    ],
+  },
+  allergens: {
+    hits: [
+      {
+        allergen: "soy",
+        label: "Soy",
+        matchedTerm: "soy lecithin",
+        ingredient: "soy lecithin",
+        tier: "contains",
+      },
+    ],
+    matches: {
+      mustAvoid: [],
+      caution: [],
+      otherPresent: [],
+    },
+    savedAllergies: [],
+  },
+  dietaryAssessments: [],
+  savedDietaryPreferences: [],
+  alerts: [],
   ingredients: [
-    { name: "Corn", note: "Primary grain, may come from GMO-dominant crops." },
-    { name: "Sugar", note: "Refined cane or beet sugar." },
-    { name: "Vegetable Oil", note: "Blend of sunflower and palm oil." },
-    { name: "Soy Lecithin", note: "Emulsifier derived from soy." },
-    { name: "Sea Salt", note: "Mined salt with minimal processing." },
+    {
+      name: "corn",
+      explanation: "A grain made from maize; it is the main cereal ingredient here.",
+      role: "Main ingredient",
+    },
+    {
+      name: "sugar",
+      explanation: "A sweetener; the label does not say whether it comes from cane or beet.",
+      role: "Sweetener",
+    },
+    {
+      name: "vegetable oil",
+      explanation: "Oil from plants; the label does not identify which plant.",
+      role: "Texture and cooking",
+    },
+    {
+      name: "soy lecithin",
+      explanation: "A soy-derived ingredient that helps keep ingredients mixed.",
+      role: "Emulsifier",
+    },
+    {
+      name: "sea salt",
+      explanation: "Salt collected from seawater.",
+      role: "Seasoning",
+    },
   ],
+  analysisWarnings: [],
   imageUrl: "",
+  clearance: null,
 };
 
 /** One entry in the user's saved scan history. */
@@ -268,8 +305,9 @@ export type ScanHistoryItem = {
   manufacturer: string;
   nafdacRegNo: string;
   scanDate: string;
-  verified: boolean;
-  gmoRisk: RiskLevel;
+  status: "analyzed" | "processing" | "needs-review" | "failed" | "saved";
+  gmoRisk: RiskLevel | null;
+  fluorideLikelihood: RiskLevel | null;
   imageUrl: string;
 };
 
@@ -279,79 +317,11 @@ export type ScanHistoryPage = {
   total: number;
 };
 
-/** Fetch the current user's saved scan history. */
-export async function fetchScanHistoryPage(): Promise<ScanHistoryPage> {
-  // TODO(backend): GET `${API_BASE_URL}/scans/history?page=1&limit=6`
-  return { items: placeholderScanHistory, total: 24 };
-}
-
-const placeholderScanHistory: ScanHistoryItem[] = [
-  {
-    id: "hist-1",
-    productName: "Golden Harvest Corn Flakes",
-    manufacturer: "NutriGrain Foods Ltd.",
-    nafdacRegNo: "A1-4738",
-    scanDate: "Sep 21, 2026",
-    verified: true,
-    gmoRisk: "high",
-    imageUrl: "",
-  },
-  {
-    id: "hist-2",
-    productName: "Peach Crush Juice Drink",
-    manufacturer: "FreshVale Beverages",
-    nafdacRegNo: "B4-2291",
-    scanDate: "Sep 18, 2026",
-    verified: true,
-    gmoRisk: "low",
-    imageUrl: "",
-  },
-  {
-    id: "hist-3",
-    productName: "Tomato & Chilli Sauce",
-    manufacturer: "Spiceway Products",
-    nafdacRegNo: "C7-8854",
-    scanDate: "Sep 15, 2026",
-    verified: true,
-    gmoRisk: "low",
-    imageUrl: "",
-  },
-  {
-    id: "hist-4",
-    productName: "Original Instant Noodles",
-    manufacturer: "QuickNoodle Co.",
-    nafdacRegNo: "D2-1107",
-    scanDate: "Sep 12, 2026",
-    verified: false,
-    gmoRisk: "high",
-    imageUrl: "",
-  },
-  {
-    id: "hist-5",
-    productName: "Coconut Body Lotion",
-    manufacturer: "GlowLeaf Cosmetics",
-    nafdacRegNo: "F9-3360",
-    scanDate: "Sep 9, 2026",
-    verified: true,
-    gmoRisk: "medium",
-    imageUrl: "",
-  },
-  {
-    id: "hist-6",
-    productName: "Fortified Soy Flour",
-    manufacturer: "NutriCore Mills",
-    nafdacRegNo: "G3-7752",
-    scanDate: "Sep 6, 2026",
-    verified: false,
-    gmoRisk: "medium",
-    imageUrl: "",
-  },
-];
-
 export type NotificationSettings = {
-  scanAlerts: boolean;
   gmoWarnings: boolean;
-  productRecalls: boolean;
+  fluorideWarnings: boolean;
+  allergenAlerts: boolean;
+  dietaryAlerts: boolean;
 };
 
 /** The signed-in user's account profile. */
@@ -377,9 +347,10 @@ const placeholderProfile: UserProfile = {
   allergies: ["Soy", "Nuts", "Gluten"],
   dietary: ["Vegetarian", "Halal"],
   notifications: {
-    scanAlerts: true,
-    gmoWarnings: false,
-    productRecalls: true,
+    gmoWarnings: true,
+    fluorideWarnings: true,
+    allergenAlerts: true,
+    dietaryAlerts: true,
   },
 };
 
