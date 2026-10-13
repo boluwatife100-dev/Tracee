@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import {
+  ClipboardList,
   History,
   LayoutDashboard,
   ScanLine,
@@ -10,7 +11,8 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import Logo from "@/components/ui/Logo";
+import { useUser } from "@clerk/nextjs";
+import { isAdminRole, readRole } from "@/lib/admin-role";
 import {
   Sidebar as SidebarRoot,
   SidebarContent,
@@ -38,8 +40,17 @@ const NAV_ITEMS: {
   { label: "Profile", href: "/dashboard/profile", icon: UserRound },
 ];
 
+const ADMIN_ITEM = {
+  label: "Admin review",
+  href: "/admin/review",
+  icon: ClipboardList,
+};
+
 export default function DashboardSidebar() {
   const pathname = usePathname();
+  const { user } = useUser();
+  const isAdmin = isAdminRole(readRole(user?.publicMetadata));
+  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
 
   return (
     <SidebarRoot>
@@ -51,7 +62,7 @@ export default function DashboardSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = item.href === "/dashboard"
                 ? pathname === item.href
