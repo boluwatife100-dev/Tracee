@@ -79,7 +79,7 @@ export default function CareChecklist() {
   return (
     <section
       id="care-checklist"
-      className="flex flex-col gap-5 rounded-2xl border border-forest/10 bg-white p-5 shadow-sm sm:p-6"
+      className="flex min-w-0 flex-col gap-5 rounded-2xl border border-forest/10 bg-white p-5 shadow-sm sm:p-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

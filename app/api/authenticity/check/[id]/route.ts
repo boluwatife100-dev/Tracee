@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedScanImageUrl } from "@/lib/scan-image";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,7 @@ export async function GET(
         aiReview: true,
         extractedFields: true,
         matchedRecord: true,
+        imagePublicIds: true,
         registrySource: true,
         registryAvailable: true,
         nafdacRegNumber: true,
@@ -36,6 +38,7 @@ export async function GET(
     if (!check) return Response.json({ error: "Check not found." }, { status: 404 });
     return Response.json({
       ...check,
+      frontImageUrl: getAuthenticatedScanImageUrl(check.imagePublicIds),
       createdAt: check.createdAt.toISOString(),
       officialUrl:
         check.registrySource === "food_db"

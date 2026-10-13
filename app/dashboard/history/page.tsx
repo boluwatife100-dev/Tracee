@@ -1,5 +1,5 @@
 import HistoryView from "@/components/history/HistoryView";
-import { fetchScanHistoryPage } from "@/lib/api";
+import { fetchScanHistoryPage } from "@/lib/scan-history";
 
 export const metadata = {
   title: "Scan History — Tracee",

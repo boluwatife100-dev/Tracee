@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronRight,
+  Image as ImageIcon,
   FileWarning,
   LoaderCircle,
   ShieldCheck,
   TriangleAlert,
+  X,
 } from "lucide-react";
 import {
   BrowserMultiFormatReader,
@@ -35,6 +39,7 @@ type CheckResult = {
   aiReview: AuthenticityAIReview | null;
   extractedFields: Record<string, unknown> | null;
   matchedRecord: Record<string, unknown> | null;
+  frontImageUrl: string | null;
   registrySource: string | null;
   registryAvailable: boolean | null;
   nafdacRegNumber: string | null;
@@ -50,6 +55,7 @@ type HistoryItem = {
   nafdacRegNumber: string | null;
   extractedFields: Record<string, unknown> | null;
   matchedRecord: Record<string, unknown> | null;
+  frontImageUrl: string | null;
   registryAvailable: boolean | null;
   registrySource: string | null;
   barcodeValue: string | null;
@@ -99,22 +105,125 @@ function readable(value: unknown): string {
 
 function stateStyle(state: AuthenticityState): string {
   if (state === "VERIFIED_REGISTRATION") {
-    return "bg-emerald-100 text-emerald-900";
+    return "bg-emerald-50 text-emerald-900 ring-1 ring-inset ring-emerald-700/20";
   }
-  if (state === "MISMATCH" || state === "NOT_FOUND") {
-    return "bg-amber-100 text-amber-950";
+  if (state === "MISMATCH") {
+    return "bg-rose-50 text-rose-900 ring-1 ring-inset ring-rose-700/20";
   }
-  return "bg-slate-100 text-slate-800";
+  if (state === "NOT_FOUND") {
+    return "bg-amber-50 text-amber-950 ring-1 ring-inset ring-amber-700/20";
+  }
+  return "bg-slate-100 text-slate-800 ring-1 ring-inset ring-slate-700/15";
 }
 
 function ResultCard({
   result,
+  onViewDetails,
+}: {
+  result: CheckResult | HistoryItem;
+  onViewDetails: () => void;
+}) {
+  const extraction = safeRecord(result.extractedFields);
+  const matchedRecord = safeRecord(result.matchedRecord);
+  const productName = readable(extraction?.productName ?? matchedRecord?.productName);
+
+  return (
+    <article className="flex items-center gap-3 rounded-2xl border border-forest/10 bg-white p-3 sm:gap-4 sm:p-4">
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-sage/60 sm:h-24 sm:w-24">
+        {result.frontImageUrl ? (
+          <Image
+            src={result.frontImageUrl}
+            alt={`${productName} front of package`}
+            fill
+            unoptimized
+            sizes="96px"
+            className="object-cover"
+          />
+        ) : (
+          <span className="flex h-full items-center justify-center text-forest/45">
+            <ImageIcon className="h-7 w-7" aria-hidden="true" />
+          </span>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
+        <h3 className="line-clamp-2 font-semibold leading-5 text-forest">
+          {productName}
+        </h3>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${stateStyle(result.state)}`}
+        >
+          {LABELS[result.state]}
+        </span>
+        <button
+          type="button"
+          onClick={onViewDetails}
+          className="inline-flex min-h-9 items-center gap-1 rounded-lg text-sm font-semibold text-forest underline decoration-forest/35 underline-offset-4 hover:decoration-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+        >
+          View details
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ResultDetailsSheet({
+  result,
+  onClose,
   onReport,
-  history = false,
+}: {
+  result: CheckResult | HistoryItem;
+  onClose: () => void;
+  onReport?: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal();
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="authenticity-details-title"
+      onClose={onClose}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) event.currentTarget.close();
+      }}
+      className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-transparent p-0 text-forest backdrop:bg-forest/35"
+    >
+      <div className="ml-auto flex h-full w-full max-w-xl flex-col bg-white shadow-2xl">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-forest/10 px-5 py-4 sm:px-7">
+          <h2
+            id="authenticity-details-title"
+            className="text-lg font-bold text-forest"
+          >
+            Product check details
+          </h2>
+          <button
+            type="button"
+            onClick={() => dialogRef.current?.close()}
+            aria-label="Close product check details"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-forest/70 hover:bg-sage hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">
+          <ResultDetails result={result} onReport={onReport} />
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+function ResultDetails({
+  result,
+  onReport,
 }: {
   result: CheckResult | HistoryItem;
   onReport?: () => void;
-  history?: boolean;
 }) {
   const extraction = safeRecord(result.extractedFields);
   const record = safeRecord("matchedRecord" in result ? result.matchedRecord : null);
@@ -144,7 +253,7 @@ function ResultCard({
     );
 
   return (
-    <article className="flex flex-col gap-5 rounded-3xl border border-forest/10 bg-white p-5 shadow-sm sm:p-7">
+    <div className="flex flex-col gap-5 pb-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-forest/55">
@@ -313,13 +422,11 @@ function ResultCard({
           </button>
         ) : null}
         <p className="text-xs leading-5 text-forest/65">{DISCLAIMER}</p>
-        {history ? (
-          <p className="text-xs text-forest/55">
-            Checked {new Date(result.createdAt).toLocaleString()}
-          </p>
-        ) : null}
+        <p className="text-xs text-forest/55">
+          Checked {new Date(result.createdAt).toLocaleString()}
+        </p>
       </div>
-    </article>
+    </div>
   );
 }
 
@@ -343,6 +450,11 @@ export default function AuthenticityCapture() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<CheckResult | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+  const [activeDetails, setActiveDetails] = useState<CheckResult | HistoryItem | null>(
+    null
+  );
   const [reportOpen, setReportOpen] = useState(false);
   const [reportNote, setReportNote] = useState("");
   const [reportPhoto, setReportPhoto] = useState<File | null>(null);
@@ -351,23 +463,41 @@ export default function AuthenticityCapture() {
   const [ocrProgress, setOcrProgress] = useState(0);
 
   async function refreshHistory() {
-    setHistory(await fetchAuthenticityHistory());
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      setHistory(await fetchAuthenticityHistory());
+    } catch (loadError) {
+      setHistoryError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load check history."
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
   }
 
   useEffect(() => {
     let cancelled = false;
     void fetchAuthenticityHistory()
       .then((checks) => {
-        if (!cancelled) setHistory(checks);
+        if (!cancelled) {
+          setHistory(checks);
+          setHistoryError("");
+        }
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {
-          setError(
+          setHistoryError(
             loadError instanceof Error
               ? loadError.message
               : "Unable to load check history."
           );
         }
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
       });
     return () => {
       cancelled = true;
@@ -581,7 +711,7 @@ export default function AuthenticityCapture() {
           : "Check product registration";
 
   return (
-    <section className="mx-auto flex w-full max-w-4xl flex-col gap-7">
+    <section className="mx-auto flex w-full max-w-6xl flex-col gap-7">
       <header className="flex flex-col gap-2">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-mint text-forest">
           <ShieldCheck className="h-6 w-6" aria-hidden="true" />
@@ -683,7 +813,10 @@ export default function AuthenticityCapture() {
 
       {result ? (
         <div className="flex flex-col gap-4">
-          <ResultCard result={result} onReport={() => setReportOpen(true)} />
+          <ResultCard
+            result={result}
+            onViewDetails={() => setActiveDetails(result)}
+          />
           {reportSaved ? (
             <p className="text-sm font-semibold text-emerald-800" role="status">
               Your report has been saved. Thank you for helping improve product safety.
@@ -741,10 +874,51 @@ export default function AuthenticityCapture() {
           <h2 className="text-xl font-bold text-forest">Recent checks</h2>
           <p className="mt-1 text-sm text-forest/65">Your saved product checks</p>
         </div>
-        {history.length ? (
+        {historyLoading ? (
+          <div
+            className="flex flex-col gap-3"
+            role="status"
+            aria-label="Loading recent checks"
+            aria-busy="true"
+          >
+            {[0, 1, 2].map((item) => (
+              <div
+                key={item}
+                aria-hidden="true"
+                className="flex items-center gap-4 rounded-2xl border border-forest/10 bg-white p-3 sm:p-4"
+              >
+                <span className="h-20 w-20 shrink-0 rounded-xl bg-sage/60 sm:h-24 sm:w-24" />
+                <span className="flex flex-1 flex-col items-start gap-3">
+                  <span className="h-4 w-2/3 rounded bg-sage/70" />
+                  <span className="h-6 w-40 max-w-full rounded-full bg-sage/70" />
+                  <span className="h-4 w-24 rounded bg-sage/70" />
+                </span>
+              </div>
+            ))}
+            <span className="sr-only">Loading your saved product checks…</span>
+          </div>
+        ) : historyError ? (
+          <div
+            className="flex flex-col items-start gap-3 rounded-2xl border border-rose-900/15 bg-rose-50 p-5 text-sm text-rose-950"
+            role="alert"
+          >
+            <p>{historyError}</p>
+            <button
+              type="button"
+              onClick={() => void refreshHistory()}
+              className="min-h-10 rounded-lg border border-rose-900/20 px-4 font-semibold text-rose-950 hover:bg-rose-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-900"
+            >
+              Try again
+            </button>
+          </div>
+        ) : history.length ? (
           <div className="flex flex-col gap-4">
             {history.slice(0, 5).map((item) => (
-              <ResultCard key={item.id} result={item} history />
+              <ResultCard
+                key={item.id}
+                result={item}
+                onViewDetails={() => setActiveDetails(item)}
+              />
             ))}
           </div>
         ) : (
@@ -753,6 +927,21 @@ export default function AuthenticityCapture() {
           </div>
         )}
       </section>
+      {activeDetails ? (
+        <ResultDetailsSheet
+          result={activeDetails}
+          onClose={() => setActiveDetails(null)}
+          onReport={
+            "id" in activeDetails && result?.id === activeDetails.id
+              ? () => {
+                  setActiveDetails(null);
+                  setReportError("");
+                  setReportOpen(true);
+                }
+              : undefined
+          }
+        />
+      ) : null}
     </section>
   );
 }

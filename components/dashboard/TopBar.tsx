@@ -11,7 +11,7 @@ export default function TopBar({ title = "Dashboard" }: { title?: string }) {
 
   return (
     <header className="grid h-20 grid-cols-[1fr_auto_1fr] items-center border-b border-forest/5 bg-sage px-6 lg:px-10 sticky top-0 z-10">
-      <Logo />
+      <Logo href="/dashboard" />
       <h1 className="text-lg font-semibold text-forest">{title}</h1>
       <div className="flex items-center justify-end gap-2">
         {/* <button

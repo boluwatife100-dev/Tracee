@@ -110,8 +110,8 @@ export default function LatestInsights() {
   }, []);
 
   return (
-    <section className="flex flex-col gap-6 rounded-3xl border border-forest/5 bg-white p-6 shadow-sm">
-      <div className="flex items-center justify-between">
+    <section className="flex min-w-0 flex-col gap-6 rounded-3xl border border-forest/5 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-forest">Latest Insights</h2>
         <button
           type="button"
@@ -132,7 +132,7 @@ export default function LatestInsights() {
             <li key={item.id ?? `${item.title}-${item.time}-${item.detail}-${index}`}>
               <Link
                 href={item.icon === ShieldCheck ? "/dashboard/authenticity" : "/dashboard/history"}
-                className="flex items-center gap-4 py-4"
+                className="flex min-w-0 items-center gap-4 py-4"
               >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sage text-forest">
                 <Icon className="h-5 w-5" />
@@ -141,14 +141,16 @@ export default function LatestInsights() {
                 <p className="truncate text-sm font-semibold text-forest">
                   {item.title}
                 </p>
-                <p className="flex items-center gap-2 truncate text-sm text-gray-500">
-                  {item.detail}
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="truncate text-sm text-gray-500">
+                    {item.detail}
+                  </span>
                   {item.tag ? (
-                    <span className="inline-flex items-center rounded-full bg-sage px-2.5 py-0.5 text-xs font-semibold text-foreground">
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-sage px-2.5 py-0.5 text-xs font-semibold text-foreground">
                       {item.tag}
                     </span>
                   ) : null}
-                </p>
+                </div>
               </div>
               <span className="shrink-0 text-xs font-medium text-gray-400">
                 {item.time}

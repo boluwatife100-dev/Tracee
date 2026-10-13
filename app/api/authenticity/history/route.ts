@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedScanImageUrl } from "@/lib/scan-image";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,7 @@ export async function GET() {
         id: true,
         state: true,
         status: true,
+        imagePublicIds: true,
         nafdacRegNumber: true,
         extractedFields: true,
         matchedRecord: true,
@@ -30,6 +32,7 @@ export async function GET() {
     return Response.json({
       checks: checks.map((check) => ({
         ...check,
+        frontImageUrl: getAuthenticatedScanImageUrl(check.imagePublicIds),
         createdAt: check.createdAt.toISOString(),
         officialUrl:
           check.registrySource === "food_db"

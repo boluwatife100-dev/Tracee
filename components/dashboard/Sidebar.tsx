@@ -45,7 +45,7 @@ export default function DashboardSidebar() {
     <SidebarRoot>
       <SidebarHeader className="justify-center px-0 lg:justify-start lg:px-5">
         <div className="hidden min-w-0 overflow-hidden lg:block">
-          <Logo />
+          {/* <Logo /> */}
         </div>
       </SidebarHeader>
       <SidebarContent>

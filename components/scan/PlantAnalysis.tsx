@@ -18,6 +18,8 @@ import type {
   PlantCandidate,
   PlantSymptom,
 } from "@/lib/plant-types";
+import type { ClearanceInfo } from "@/lib/api";
+import ClearanceRequest from "@/components/scan/ClearanceRequest";
 
 type CareTaskView = {
   id: string;
@@ -40,6 +42,7 @@ export type PlantAnalysisView = {
   scanDate: string;
   imageUrl: string | null;
   tasks: CareTaskView[];
+  clearance: ClearanceInfo | null;
 };
 
 function Confidence({ value }: { value: number }) {
@@ -300,6 +303,8 @@ export default function PlantAnalysis({ result }: { result: PlantAnalysisView })
               </ul>
             </section>
           ) : null}
+
+          <ClearanceRequest scanId={result.id} clearance={result.clearance} />
 
           {result.tasks.length ? (
             <section className="flex flex-col gap-4">

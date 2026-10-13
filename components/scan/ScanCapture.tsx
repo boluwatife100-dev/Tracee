@@ -1,20 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
   Camera,
-  Check,
   LoaderCircle,
   ScanLine,
   Sprout,
 } from "lucide-react";
 
 type ScanMode = "product" | "plant";
-type ScanStatus = "idle" | "reading" | "uploading" | "analyzing" | "complete";
+type ScanStatus = "idle" | "reading" | "uploading" | "analyzing";
 
 const MAX_IMAGE_SIZE = 3 * 1024 * 1024;
 const MAX_UPLOAD_IMAGE_SIZE = 3 * 1024 * 1024;
@@ -221,14 +219,9 @@ export default function ScanCapture({
   const [plantName, setPlantName] = useState("");
   const [leafDescription, setLeafDescription] = useState("");
   const [status, setStatus] = useState<ScanStatus>("idle");
-  const [ocrText, setOcrText] = useState("");
-  const [ocrConfidence, setOcrConfidence] = useState<number | null>(null);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [error, setError] = useState("");
   const [mediaConsent, setMediaConsent] = useState(false);
-  const [scanId, setScanId] = useState<string | null>(null);
-  const [correctionSaved, setCorrectionSaved] = useState(false);
-
   const isBusy =
     status === "reading" || status === "uploading" || status === "analyzing";
   const canSubmit =
@@ -244,9 +237,6 @@ export default function ScanCapture({
   ): boolean {
     setError("");
     setStatus("idle");
-    setOcrText("");
-    setOcrConfidence(null);
-    setScanId(null);
 
     if (file && !file.type.startsWith("image/")) {
       setError("Choose an image file.");
@@ -273,8 +263,6 @@ export default function ScanCapture({
     let recognizedText = "";
     let recognizedConfidence: number | null = null;
     setError("");
-    setOcrText("");
-    setOcrConfidence(null);
 
     try {
       if (mode === "product" && backPhoto) {
@@ -293,8 +281,6 @@ export default function ScanCapture({
           const result = await worker.recognize(backPhoto);
           recognizedText = result.data.text.trim();
           recognizedConfidence = Math.round(result.data.confidence);
-          setOcrText(recognizedText);
-          setOcrConfidence(recognizedConfidence);
         } finally {
           await worker.terminate();
         }
@@ -367,7 +353,6 @@ export default function ScanCapture({
       }
       const savedScanId = scanData.scanId;
       if (!savedScanId) throw new Error("The saved scan did not return an ID.");
-      setScanId(savedScanId);
       if (mode === "plant") {
         setStatus("analyzing");
         const diagnosisResponse = await fetch(
@@ -383,7 +368,8 @@ export default function ScanCapture({
         router.push(`/dashboard/my-plant/${savedScanId}`);
         return;
       }
-      setStatus("complete");
+      setStatus("analyzing");
+      router.push(`/dashboard/scan/product-result?id=${savedScanId}`);
     } catch (caughtError) {
       setStatus("idle");
       setError(
@@ -394,39 +380,11 @@ export default function ScanCapture({
     }
   }
 
-  async function saveCorrection() {
-    if (!scanId) return;
-    setError("");
-    setCorrectionSaved(false);
-
-    try {
-      const response = await fetch(`/api/scans/${scanId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ocrText }),
-      });
-      const data = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Could not save the corrected label text.");
-      }
-      setCorrectionSaved(true);
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Could not save the corrected label text."
-      );
-    }
-  }
-
   function changeMode(nextMode: ScanMode) {
     setMode(nextMode);
     router.replace(`/dashboard/scan?type=${nextMode}`, { scroll: false });
     setStatus("idle");
     setError("");
-    setOcrText("");
-    setOcrConfidence(null);
-    setScanId(null);
     setWholePlantPhoto(null);
     setCloseUpPhoto(null);
     setUndersidePhoto(null);
@@ -437,7 +395,7 @@ export default function ScanCapture({
   }
 
   return (
-    <section className="mx-auto flex w-full max-w-3xl flex-col gap-7">
+    <section className="mx-auto flex w-full max-w-6xl flex-col gap-7">
       <div>
         <h1 className="text-2xl font-bold text-forest sm:text-3xl">New scan</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-forest/70">
@@ -446,7 +404,7 @@ export default function ScanCapture({
       </div>
 
       <div
-        className="grid grid-cols-3 border-b border-forest/15"
+        className="grid grid-cols-2 border-b border-forest/15"
         role="tablist"
         aria-label="Scan type"
       >
@@ -463,15 +421,6 @@ export default function ScanCapture({
           >
             <ScanLine className="h-4 w-4" aria-hidden="true" />
             Product
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={false}
-            onClick={() => router.push("/dashboard/authenticity")}
-            className="inline-flex min-h-12 items-center justify-center gap-2 border-b-2 border-transparent px-3 text-sm font-semibold text-forest/55 transition-colors hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
-          >
-            Authenticity
           </button>
           <button
             type="button"
@@ -608,20 +557,18 @@ export default function ScanCapture({
         >
           {isBusy ? (
             <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : status === "complete" ? (
-            <Check className="h-4 w-4" aria-hidden="true" />
           ) : null}
           {status === "reading"
             ? `Reading label ${ocrProgress}%`
             : status === "uploading"
               ? "Uploading photos…"
               : status === "analyzing"
-                ? "Identifying plant and building care plan…"
-              : status === "complete"
-                ? "Photos stored"
-                : mode === "product"
-                  ? "Read label and store photos"
-                  : "Identify plant and check health"}
+                ? mode === "product"
+                  ? "Reading ingredients and building your report…"
+                  : "Identifying plant and building care plan…"
+              : mode === "product"
+                ? "Read label and build report"
+                : "Identify plant and check health"}
         </button>
 
         {error ? (
@@ -631,58 +578,6 @@ export default function ScanCapture({
           </p>
         ) : null}
 
-        {status === "complete" ? (
-          <div className="flex flex-col gap-3 rounded-xl bg-sage/70 p-4" aria-live="polite">
-            <p className="text-sm font-semibold text-forest">
-              {mode === "product"
-                ? "Label text extracted. No catalog verdict is available yet."
-                : "Your scan is saved. The analysis could not finish yet."}
-            </p>
-            {mode === "plant" && scanId ? (
-              <Link
-                href={`/dashboard/my-plant/${scanId}`}
-                className="inline-flex min-h-10 w-fit items-center rounded-lg bg-forest px-4 text-sm font-semibold text-white hover:bg-forest-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
-              >
-                Open saved scan
-              </Link>
-            ) : null}
-            {mode === "product" ? (
-              <>
-                <p className="text-xs text-forest/70">
-                  OCR confidence: {ocrConfidence ?? 0}%
-                </p>
-                <textarea
-                  value={ocrText}
-                  onChange={(event) => {
-                    setOcrText(event.target.value);
-                    setCorrectionSaved(false);
-                  }}
-                  aria-label="Extracted label text"
-                  placeholder="No readable text found. You can enter it here."
-                  rows={7}
-                  className="w-full resize-y rounded-lg border border-forest/20 bg-white p-3 text-sm leading-6 text-forest outline-none focus:border-forest focus:ring-2 focus:ring-forest/15"
-                />
-                <div className="flex items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={saveCorrection}
-                    className="min-h-10 rounded-lg border border-forest/25 px-3 text-sm font-semibold text-forest transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
-                  >
-                    Save correction
-                  </button>
-                  {correctionSaved ? (
-                    <span className="text-xs font-medium text-green-800" role="status">
-                      Correction saved
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-xs leading-5 text-forest/70">
-                  GMO likelihood cannot be proven from a photo. No GMO or fluoride verdict is shown until the catalog is connected.
-                </p>
-              </>
-            ) : null}
-          </div>
-        ) : null}
       </div>
     </section>
   );

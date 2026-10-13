@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedScanImageUrl } from "@/lib/scan-image";
 import {
   AuthenticityExtractionSchema,
   extractAuthenticityFromPhotos,
@@ -176,6 +177,7 @@ async function responseForCheck(id: string, userId: string) {
     aiReview: check.aiReview,
     extractedFields: check.extractedFields,
     matchedRecord: check.matchedRecord,
+    frontImageUrl: getAuthenticatedScanImageUrl(check.imagePublicIds),
     registrySource: check.registrySource,
     registryAvailable: check.registryAvailable,
     nafdacRegNumber: check.nafdacRegNumber,

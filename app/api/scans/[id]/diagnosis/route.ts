@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { diagnosePlant } from "@/lib/plant-diagnosis";
+import { ensurePendingClearance } from "@/lib/clearance";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -103,6 +104,14 @@ export async function POST(
       });
     });
 
+    if (result.needsBetterPhoto) {
+      try {
+        await ensurePendingClearance(scan.id, "insufficient_evidence");
+      } catch (clearanceError) {
+        console.error("Failed to queue plant scan for review", clearanceError);
+      }
+    }
+
     return Response.json({
       scanId: scan.id,
       needsBetterPhoto: result.needsBetterPhoto,
@@ -110,10 +119,13 @@ export async function POST(
   } catch (error) {
     console.error("Failed to diagnose plant scan", error);
     try {
-      await prisma.scan.updateMany({
+      const failed = await prisma.scan.updateMany({
         where: { id, userId, kind: "plant", status: "analyzing" },
         data: { status: "failed" },
       });
+      if (failed.count) {
+        await ensurePendingClearance(id, "insufficient_evidence");
+      }
     } catch (statusError) {
       console.error("Failed to mark plant scan as failed", statusError);
     }

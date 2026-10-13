@@ -70,6 +70,9 @@ model Scan {
   plantContext  Json?
   // Raw structured extraction from Gemini, kept for audit and re-scoring
   extraction    Json?
+  // Cached product report (verdicts + AI ingredient explanations), built once to
+  // avoid repeat AI calls. Per-user allergen/dietary results are NOT stored here.
+  analysis       Json?
   forced        Boolean  @default(false) // user explicitly asked for a rescan
   idempotencyKey String? @unique
   createdAt     DateTime @default(now())

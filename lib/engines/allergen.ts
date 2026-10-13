@@ -101,10 +101,56 @@ export function detectAllergens(
 
 /** Applies a user's saved allergen profile at read time. Never cached on Product. */
 export function matchUserAllergens(hits: AllergenHit[], userAllergens: string[]) {
-  const set = new Set(userAllergens);
+  const set = new Set(
+    userAllergens.flatMap((allergen) => canonicalAllergenKeys(allergen))
+  );
   return {
     mustAvoid: hits.filter((h) => set.has(h.allergen) && h.tier === "contains"),
     caution: hits.filter((h) => set.has(h.allergen) && h.tier === "may_contain"),
     otherPresent: hits.filter((h) => !set.has(h.allergen)),
   };
+}
+
+/**
+ * Turns a profile label ("Peanuts", "Wheat", "Dairy", "Nuts") or a raw alias
+ * ("casein") into canonical ALLERGENS keys. Without this, plural or label
+ * spellings silently never match and the user is never alerted.
+ */
+const ALLERGEN_GROUP_SYNONYMS: Record<string, string[]> = {
+  dairy: ["milk"],
+  nuts: ["peanut", "tree_nut"],
+  nut: ["peanut", "tree_nut"],
+  gluten: ["wheat_gluten"],
+  seafood: ["fish", "shellfish", "mollusc"],
+  crustacean: ["shellfish"],
+  crustaceans: ["shellfish"],
+};
+
+function canonicalAllergenKeys(value: string): string[] {
+  const key = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (!key) return [];
+  const compact = key.replace(/ /g, "");
+
+  const keys = new Set<string>();
+  if (ALLERGENS[compact]) keys.add(compact);
+  if (ALLERGENS[key.replace(/ /g, "_")]) keys.add(key.replace(/ /g, "_"));
+  for (const synonym of ALLERGEN_GROUP_SYNONYMS[key] ?? []) keys.add(synonym);
+  if (keys.size > 0) return [...keys];
+
+  // Fall back to any alias or label that matches this (singular or plural).
+  for (const [allergenKey, def] of Object.entries(ALLERGENS)) {
+    const images = [allergenKey, def.label, ...def.aliases];
+    for (const image of images) {
+      const normalized = image.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (
+        normalized === key ||
+        `${normalized}s` === key ||
+        (normalized.endsWith("s") && normalized.slice(0, -1) === key)
+      ) {
+        keys.add(allergenKey);
+        break;
+      }
+    }
+  }
+  return [...keys];
 }

@@ -33,6 +33,7 @@ export default async function PlantScanPage({
           tasks: { orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }] },
         },
       },
+      clearance: { select: { id: true, status: true, reason: true } },
     },
   });
   if (!scan) notFound();
@@ -72,6 +73,7 @@ export default async function PlantScanPage({
         dueAt: task.dueAt?.toISOString() ?? null,
         recurrence: task.recurrence,
       })) ?? [],
+    clearance: scan.clearance ?? null,
   };
 
   return <PlantAnalysis result={result} />;
