@@ -1,8 +1,11 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+import { Manrope, Geist } from "next/font/google";
 import "./globals.css";
 import Head from "next/head";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -19,7 +22,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html suppressHydrationWarning
       lang="en"
-      className={`${manrope.variable} h-full antialiased`}
+      className={cn("h-full", "antialiased", manrope.variable, "font-sans", geist.variable)}
     >
       
       <body className="min-h-full flex flex-col bg-white text-forest font-sans" suppressHydrationWarning={true}>

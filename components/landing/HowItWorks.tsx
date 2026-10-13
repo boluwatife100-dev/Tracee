@@ -1,8 +1,13 @@
 import Button from "@/components/ui/Button";
 import Container from "@/components/ui/Container";
 import SectionHeading from "@/components/ui/SectionHeading";
-import { ArrowRightLeft, CheckCircle, HouseHeart } from "lucide-react";
-import Image from "next/image";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { ArrowRightLeft, CheckCircle, HouseHeart, Play, X } from "lucide-react";
 
 const STEPS = [
   {
@@ -66,9 +71,35 @@ export default function HowItWorks() {
           ))}
         </ol>
 
-        <Button href="/#onboarding" size="lg" className="px-4.5 py-4 bg-primary text-white font-bold text-sm md:text-base rounded-lg">
-          See how it works
-        </Button>
+        <Dialog>
+          <DialogTrigger>
+            <div
+             
+              className="px-4.5 py-4 bg-primary text-white flex items-center font-bold text-sm md:text-base rounded-lg w-fit cursor-pointer"
+            >
+              See how it works
+              <Play className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+          </DialogTrigger>
+          <DialogContent className="w-[95vw] sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[85vh] p-0 border-0 bg-black/95 shadow-none overflow-hidden">
+            <DialogClose className="absolute right-2 top-2 z-10 rounded-full bg-black/60 p-2 text-white transition hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-white/40 sm:right-3 sm:top-3">
+              <X className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="sr-only">Close</span>
+            </DialogClose>
+
+            <div className="relative aspect-video w-full">
+              <video
+                src="/tracee-exp.mp4"
+                controls
+                muted
+                autoPlay
+                playsInline
+                preload="metadata"
+                className="absolute inset-0 h-full w-full object-contain"
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
       </Container>
     </section>
   );

@@ -14,24 +14,71 @@ import {
 type ScanMode = "product" | "plant";
 type ScanStatus = "idle" | "reading" | "uploading" | "analyzing";
 
-const MAX_IMAGE_SIZE = 3 * 1024 * 1024;
+export const MAX_IMAGE_SIZE = 25 * 1024 * 1024;
 const MAX_UPLOAD_IMAGE_SIZE = 3 * 1024 * 1024;
 const TARGET_COMPRESSED_IMAGE_SIZE = 1 * 1024 * 1024;
 
-export async function compressImage(file: File): Promise<File> {
-  const bitmap = await createImageBitmap(file);
+type Drawable = {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  release: () => void;
+};
+
+async function loadDrawable(file: File): Promise<Drawable> {
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(file);
+      return {
+        source: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        release: () => bitmap.close(),
+      };
+    } catch {
+      // Some mobile browsers cannot decode certain formats (e.g. HEIC) via
+      // createImageBitmap; fall back to an <img> element below.
+    }
+  }
+
+  const url = URL.createObjectURL(file);
+  const image = document.createElement("img");
+  image.src = url;
   try {
-    let scale = Math.min(1, 2560 / Math.max(bitmap.width, bitmap.height));
+    if (typeof image.decode === "function") {
+      await image.decode();
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("decode failed"));
+      });
+    }
+  } catch {
+    URL.revokeObjectURL(url);
+    throw new Error("This photo format is not supported. Try a JPG or PNG.");
+  }
+  return {
+    source: image,
+    width: image.naturalWidth,
+    height: image.naturalHeight,
+    release: () => URL.revokeObjectURL(url),
+  };
+}
+
+export async function compressImage(file: File): Promise<File> {
+  const { source, width, height, release } = await loadDrawable(file);
+  try {
+    let scale = Math.min(1, 2560 / Math.max(width, height));
     while (true) {
       const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
       const context = canvas.getContext("2d");
       if (!context) throw new Error("Could not prepare this photo for upload.");
 
       context.fillStyle = "#fff";
       context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      context.drawImage(source, 0, 0, canvas.width, canvas.height);
 
       for (let quality = 0.86; quality >= 0.5; quality -= 0.12) {
         const blob = await new Promise<Blob | null>((resolve) =>
@@ -53,11 +100,16 @@ export async function compressImage(file: File): Promise<File> {
       scale *= 0.8;
     }
   } finally {
-    bitmap.close();
+    release();
   }
 }
 
 export async function getContentHash(file: File): Promise<string> {
+  if (!globalThis.crypto?.subtle) {
+    throw new Error(
+      "Photo uploads require a secure (HTTPS) connection. Please reload over HTTPS."
+    );
+  }
   const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0")
@@ -114,14 +166,13 @@ export function PhotoField({
               <Camera className="h-5 w-5" aria-hidden="true" />
             </span>
             <span className="text-sm font-semibold">Take photo or choose file</span>
-            <span className="text-xs">JPG, PNG, or WEBP up to 3 MB;</span>
+            <span className="text-xs">JPG, PNG, or WEBP up to 25 MB</span>
           </span>
         )}
         <input
           id={id}
           type="file"
           accept="image/*"
-          capture="environment"
           className="sr-only"
           onChange={(event) => {
             handleFileChange(event.target.files?.[0] ?? null);
@@ -238,13 +289,13 @@ export default function ScanCapture({
     setError("");
     setStatus("idle");
 
-    if (file && !file.type.startsWith("image/")) {
+    if (file && file.type && !file.type.startsWith("image/")) {
       setError("Choose an image file.");
       setPhoto(null);
       return false;
     }
     if (file && file.size > MAX_IMAGE_SIZE) {
-      setError("Choose an image no larger than 3 MB.");
+      setError("Choose an image no larger than 25 MB.");
       setPhoto(null);
       return false;
     }
