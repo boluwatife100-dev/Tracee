@@ -10,7 +10,7 @@ const NAV_LINKS = [
   { label: "Features", href: "#features" },
   { label: "How Tracee Works", href: "#how-it-works" },
   { label: "Support", href: "#support" },
-  { label: "About", href: "#about" },
+  { label: "About", href: "/about" },
 ];
 
 export default function Navbar() {

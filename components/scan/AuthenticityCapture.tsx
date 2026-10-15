@@ -20,6 +20,7 @@ import { NotFoundException } from "@zxing/library";
 import {
   compressImage,
   getContentHash,
+  MAX_IMAGE_SIZE,
   PhotoField,
   uploadToCloudinary,
 } from "@/components/scan/ScanCapture";
@@ -507,13 +508,13 @@ export default function AuthenticityCapture() {
   function setPhoto(slot: UploadSlot, file: File | null): boolean {
     setError("");
     setResult(null);
-    if (file && !file.type.startsWith("image/")) {
+    if (file && file.type && !file.type.startsWith("image/")) {
       setError("Choose an image file.");
       setPhotos((current) => ({ ...current, [slot]: null }));
       return false;
     }
-    if (file && file.size > 3 * 1024 * 1024) {
-      setError("Choose an image no larger than 3 MB.");
+    if (file && file.size > MAX_IMAGE_SIZE) {
+      setError("Choose an image no larger than 25 MB.");
       setPhotos((current) => ({ ...current, [slot]: null }));
       return false;
     }
@@ -840,7 +841,6 @@ export default function AuthenticityCapture() {
                 <input
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   onChange={(event) => setReportPhoto(event.target.files?.[0] ?? null)}
                   className="text-sm font-normal"
                 />

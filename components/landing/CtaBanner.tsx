@@ -4,7 +4,7 @@ import { BadgeCheck } from "lucide-react";
 
 export default function CtaBanner() {
   return (
-    <section className="p-16 max-w-7xl mx-auto">
+    <section className="p-4 lg:p-8 max-w-7xl mx-auto">
       <Container className="relative overflow-hidden rounded-3xl bg-primary px-12 py-12 lg:px-16 lg:py-16">
         <div className="absolute -left-40 -top-20 h-52 w-52 rounded-full bg-[#77d7df]/10 blur-sm sm:-left-10 sm:h-64 sm:w-64 lg:h-96 lg:w-96" />
         <div className="absolute -bottom-16 -right-10 h-52 w-52 rounded-full bg-[#77d7df]/10 blur-sm sm:-bottom-20 sm:-right-12 sm:h-64 sm:w-64 lg:h-96 lg:w-96" />

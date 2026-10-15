@@ -37,9 +37,17 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="flex h-full items-center justify-center px-6 py-12 lg:min-h-svh lg:py-0 lg:px-0">
-        <div className="mx-auto flex w-full max-w-4xl flex-col items-center justify-center gap-6 rounded-lg bg-white p-10 backdrop-blur-sm lg:p-2 lg:self-stretch my-1 lg:my-20">
-          <SignIn />
+      <section className="flex h-full w-full items-center justify-center px-4 py-8 sm:px-6 sm:py-12 lg:min-h-svh lg:py-0 lg:px-0 overflow-hidden">
+        <div className="mx-auto flex w-full max-w-md md:max-w-3xl items-center justify-center rounded-lg bg-none md:bg-white  p-4 shadow-none sm:p-8 lg:max-w-4xl lg:p-2 lg:self-stretch lg:shadow-none my-1 lg:my-20">
+          <SignIn
+            appearance={{
+              elements: {
+                rootBox: "w-full flex justify-center",
+                cardBox: "w-full max-w-full flex justify-center",
+                card: "w-full max-w-full shadow-none sm:shadow-md",
+              },
+            }}
+          />
         </div>
       </section>
     </main>

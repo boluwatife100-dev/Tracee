@@ -16,9 +16,9 @@ export default function Hero() {
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-2 top-2 h-[64%] bg-[url('/bg-2.png')] bg-cover bg-no-repeat bg-position-[64%_42%] after:absolute after:inset-0 after:bg-linear-to-b after:from-transparent after:via-transparent after:to-[#E9F3DD] sm:h-[70%] sm:bg-position-[58%_42%] lg:h-[76%] lg:bg-position-[50%_40%]"
       />
-      <Container className="absolute inset-x-0 bottom-10 z-10 flex flex-col items-start gap-5 sm:bottom-12 md:bottom-20 lg:flex-row lg:items-end lg:justify-between lg:gap-4 font-manrope w-full">
-        <div className="w-full p-5 text-left  lg:p-6 mx-auto">
-          <div className="flex flex-col items-start gap-4 sm:gap-5 max-w-3xl  backdrop-blur-xs  py-6 px-4">
+      <Container className="absolute inset-x-0 bottom-10 z-10 flex flex-col items-start gap-4 sm:bottom-12 md:bottom-20 lg:flex-row lg:items-end lg:justify-between lg:gap-4 font-manrope w-full">
+        <div className="w-full p-2 md:p-5 text-left  lg:p-6 mx-auto">
+          <div className="flex flex-col items-start gap-4 md:gap-5 max-w-3xl  backdrop-blur-xs py-3  md:py-6  px-4">
             <h1 className="text-4xl md:text-5xl font-extrabold leading-[1.04] text-[#003127]  lg:text-6xl">
               Trace what matters.
               <span className="mt-1.5 block">Make informed choices.</span>
