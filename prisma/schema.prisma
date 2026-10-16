@@ -17,6 +17,7 @@ model User {
   imageUrl            String?
   allergies           String[]
   dietary             String[]
+  credits             Int       @default(10)
   onboardingCompleted Boolean   @default(false)
   lastSignInAt        DateTime?
   createdAt           DateTime  @default(now())
@@ -74,6 +75,7 @@ model Scan {
   // avoid repeat AI calls. Per-user allergen/dietary results are NOT stored here.
   analysis       Json?
   forced        Boolean  @default(false) // user explicitly asked for a rescan
+  creditDeducted Boolean  @default(false)
   idempotencyKey String? @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -166,6 +168,7 @@ model AuthenticityCheck {
   aiReview        Json?
   state           String   @default("INSUFFICIENT_EVIDENCE")
   status          String   @default("queued") // queued | extracting | looking_up | review_failed | completed
+  creditDeducted  Boolean  @default(false)
   reasons         Json
   idempotencyKey  String
   mediaConsentAt  DateTime

@@ -5,6 +5,9 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
+import { CreditsProvider } from "@/components/credits/CreditsContext";
+import MobileCreditWidget from "./MobileCreditWidget";
+
 import DashboardSidebar from "./Sidebar";
 import MobileTabBar from "./MobileTabBar";
 import TopBar from "./TopBar";
@@ -18,6 +21,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/scan/product-result": "Product Analysis",
   "/dashboard/history": "Scan History",
   "/dashboard/profile": "User Profile",
+  "/dashboard/credits": "Credits & Plans",
+
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -27,15 +32,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     (pathname.startsWith("/dashboard/my-plant/") ? "Plant Diagnosis" : "Dashboard");
 
   return (
-    <SidebarProvider>
-      <DashboardSidebar />
-      <SidebarInset>
-        <TopBar title={title} />
-        <main className="flex-1 bg-white px-6 py-8 pb-24 lg:px-10 lg:py-10 lg:pb-10">
-          {children}
-        </main>
-        <MobileTabBar />
-      </SidebarInset>
-    </SidebarProvider>
+    <CreditsProvider>
+      <SidebarProvider>
+        <DashboardSidebar />
+        <SidebarInset>
+          <TopBar title={title} />
+          <main className="flex-1 bg-white px-6 py-8 pb-24 lg:px-10 lg:py-10 lg:pb-10">
+            {children}
+          </main>
+          <MobileCreditWidget />
+          <MobileTabBar />
+        </SidebarInset>
+      </SidebarProvider>
+    </CreditsProvider>
   );
 }

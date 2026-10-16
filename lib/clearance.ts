@@ -18,35 +18,68 @@ export async function ensurePendingClearance(
   scanId: string,
   reason: ClearanceReason
 ): Promise<ClearanceInfo | null> {
-  const select = { id: true, status: true, reason: true };
+  const select = {
+    id: true,
+    status: true,
+    reason: true,
+    adminNote: true,
+    reviewedAt: true,
+  };
   const existing = await prisma.clearanceRequest.findUnique({
     where: { scanId },
     select,
   });
-  if (existing) return existing;
+  if (existing) {
+    return {
+      ...existing,
+      reviewedAt: existing.reviewedAt ? existing.reviewedAt.toISOString() : null,
+    };
+  }
 
   try {
-    return await prisma.clearanceRequest.create({
+    const created = await prisma.clearanceRequest.create({
       data: { scanId, reason, status: "pending" },
       select,
     });
+    return {
+      ...created,
+      reviewedAt: created.reviewedAt ? created.reviewedAt.toISOString() : null,
+    };
   } catch (error) {
     // A concurrent pipeline path may have created the record first; the unique
     // scanId constraint guarantees we do not double-queue the scan.
     if ((error as { code?: string })?.code === "P2002") {
-      return prisma.clearanceRequest.findUnique({ where: { scanId }, select });
+      const found = await prisma.clearanceRequest.findUnique({ where: { scanId }, select });
+      return found
+        ? {
+            ...found,
+            reviewedAt: found.reviewedAt ? found.reviewedAt.toISOString() : null,
+          }
+        : null;
     }
     throw error;
   }
 }
 
 /**
- * Submit (or resubmit) a user-initiated clearance request. Explicit user
- * actions may reopen a rejected request so a person can ask for another look.
+ * Submit (or resubmit) a user-initiated clearance request.
+ * If an admin has already made a terminal decision (cleared or rejected),
+ * it cannot be reopened.
  */
 export async function requestUserClearance(
   scanId: string
 ): Promise<ClearanceInfo> {
+  const existing = await prisma.clearanceRequest.findUnique({
+    where: { scanId },
+    select: { status: true },
+  });
+
+  if (existing?.status === "cleared" || existing?.status === "rejected") {
+    throw new Error(
+      "This review has already been finalized by an admin and cannot be reopened."
+    );
+  }
+
   const clearance = await prisma.clearanceRequest.upsert({
     where: { scanId },
     create: { scanId, reason: "user_request", status: "pending" },
@@ -57,7 +90,16 @@ export async function requestUserClearance(
       reviewedBy: null,
       reviewedAt: null,
     },
-    select: { id: true, status: true, reason: true },
+    select: {
+      id: true,
+      status: true,
+      reason: true,
+      adminNote: true,
+      reviewedAt: true,
+    },
   });
-  return clearance;
+  return {
+    ...clearance,
+    reviewedAt: clearance.reviewedAt ? clearance.reviewedAt.toISOString() : null,
+  };
 }

@@ -6,6 +6,7 @@ import Footer from "@/components/landing/Footer";
 import Container from "@/components/ui/Container";
 import Button from "@/components/ui/Button";
 import SectionHeading from "@/components/ui/SectionHeading";
+import AwarenessSection from "@/components/landing/AwarenessSection";
 import {
   ArrowRight,
   CheckCircle2,
@@ -66,11 +67,11 @@ const PILLARS = [
     badge: "Consumable Safety",
   },
   {
-    title: "Cosmetic & Chemical Scrutiny",
+    title: "Product Authenticity & Safety",
     description:
-      "Detect endocrine disruptors, irritants, fragrances, and banned formulations in skincare and personal hygiene products before you apply them to your body.",
+      "Detect counterfeit products with no verifiable record with NAFDAC. Tracee flags potentially unsafe or unverified products before they enter your home. While this isn't a surefire guarantee, it adds an extra layer of protection for your family.",
     icon: Sparkles,
-    badge: "Clean Beauty",
+    badge: "Product Safety",
   },
   {
     title: "Botanical & Plant Diagnostics",
@@ -264,6 +265,9 @@ export default function AboutPage() {
             </div>
           </Container>
         </section>
+
+        {/* Awareness Education: GMOs & Fluoride Double-Bezel Section */}
+        <AwarenessSection />
         {/* Core Values Section */}
         <section className="py-16 sm:py-20 lg:py-24">
           <Container className="flex flex-col items-center gap-12 lg:gap-16 max-w-6xl">

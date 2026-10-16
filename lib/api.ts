@@ -153,6 +153,8 @@ export type ClearanceInfo = {
   id: string;
   status: string; // pending | cleared | rejected | needs_info
   reason: string; // insufficient_evidence | no_catalog_match | user_request
+  adminNote?: string | null;
+  reviewedAt?: string | null;
 };
 
 export type ProductAnalysisResult = {
