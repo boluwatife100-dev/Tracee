@@ -241,3 +241,109 @@ export async function extractAuthenticityFromPhotos(
   }
   return parsed.data;
 }
+
+const ingredientsFallbackResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    ingredientsText: { type: Type.STRING, nullable: true },
+    confidence: { type: Type.NUMBER },
+  },
+  required: ["ingredientsText", "confidence"],
+};
+
+export async function extractIngredientsFallback({
+  photoPublicIds,
+  rawText,
+}: {
+  photoPublicIds: string[];
+  rawText?: string;
+}): Promise<{ ingredientsText: string; confidence: number } | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL;
+  if (!apiKey || !model) return null;
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  // 1. If OCR rawText exists and has meaningful length, first try extracting from text
+  if (rawText && rawText.trim().length > 10) {
+    try {
+      const textPrompt = `You are a product label reader. Analyze the following OCR text and extract all listed ingredients, composition, or active/inactive ingredients.
+The text may be formatted without an "Ingredients" header, or may contain minor OCR misspellings.
+Return the ingredients as a clean, comma-separated list in ingredientsText.
+If no ingredients or product composition are present in this text, return null for ingredientsText.
+Provide a 0 to 1 confidence score based on how clearly the ingredients are represented.
+
+OCR Text:
+${rawText.slice(0, 5000)}`;
+
+      const response = await ai.models.generateContent({
+        model,
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: textPrompt }],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: ingredientsFallbackResponseSchema,
+          temperature: 0,
+        },
+      });
+
+      const parsed = JSON.parse(response.text ?? "{}");
+      if (typeof parsed.ingredientsText === "string" && parsed.ingredientsText.trim().length > 0) {
+        return {
+          ingredientsText: parsed.ingredientsText.trim(),
+          confidence: typeof parsed.confidence === "number" ? Math.min(1, Math.max(0, parsed.confidence)) : 0.8,
+        };
+      }
+    } catch (textError) {
+      console.warn("AI text ingredient extraction fallback failed, falling back to vision:", textError);
+    }
+  }
+
+  // 2. Multimodal Vision Fallback: Look directly at the packaging photos
+  const validIds = photoPublicIds.filter((id) => typeof id === "string" && id.trim().length > 0);
+  if (validIds.length > 0) {
+    try {
+      const images = await Promise.all(validIds.map(fetchImageBase64));
+      const visionPrompt = `You are an expert product label reader.
+Inspect all the provided packaging photos carefully. Locate the ingredient list, composition, contents, or active/inactive ingredients printed anywhere on the packaging.
+Transcribe all ingredients as a clean, comma-separated list in ingredientsText.
+If there are no ingredients visible on any of the package photos, return null for ingredientsText.
+Assign an honest 0 to 1 legibility score for confidence.`;
+
+      const response = await ai.models.generateContent({
+        model,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              ...images.map((img) => ({ inlineData: img })),
+              { text: visionPrompt },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: ingredientsFallbackResponseSchema,
+          temperature: 0,
+        },
+      });
+
+      const parsed = JSON.parse(response.text ?? "{}");
+      if (typeof parsed.ingredientsText === "string" && parsed.ingredientsText.trim().length > 0) {
+        return {
+          ingredientsText: parsed.ingredientsText.trim(),
+          confidence: typeof parsed.confidence === "number" ? Math.min(1, Math.max(0, parsed.confidence)) : 0.85,
+        };
+      }
+    } catch (visionError) {
+      console.error("AI vision ingredient extraction fallback failed:", visionError);
+    }
+  }
+
+  return null;
+}
+

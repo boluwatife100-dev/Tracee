@@ -257,6 +257,125 @@ const carePlanResponseSchema = {
     },
   },
   required: ["photosUsable", "summary", "ownerHint", "diseaseEvidence", "symptoms", "tasks"],
+const geminiPlantIdentificationSchema = {
+  type: Type.OBJECT,
+  properties: {
+    isPlant: { type: Type.BOOLEAN },
+    healthyProbability: { type: Type.NUMBER, nullable: true },
+    candidates: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          species: { type: Type.STRING },
+          commonName: { type: Type.STRING, nullable: true },
+          confidence: { type: Type.NUMBER },
+        },
+        required: ["species", "confidence"],
+      },
+    },
+    diseases: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          confidence: { type: Type.NUMBER },
+          evidence: { type: Type.STRING },
+        },
+        required: ["name", "confidence", "evidence"],
+      },
+    },
+  },
+  required: ["isPlant", "candidates", "diseases"],
+};
+
+async function identifyPlantWithGemini(
+  images: LabeledImage[],
+  hint: string | undefined,
+  context: PlantContext
+): Promise<ParsedPlantId> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL;
+  if (!apiKey || !model) {
+    throw new Error("Gemini is not configured. Add GEMINI_API_KEY and GEMINI_MODEL to the server environment.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = `You are an expert botanist and plant pathologist acting as a visual plant identification engine.
+Analyze these plant photos carefully:
+1. Determine if the photos show a real plant or plant parts (isPlant: true or false).
+2. Identify the plant species: provide the botanical/scientific species name (e.g. "Monstera deliciosa") and the familiar common name (e.g. "Swiss Cheese Plant"). Estimate confidence from 0 to 1 based on visual certainty. Return up to 3 candidates ranked by likelihood.
+3. Estimate healthyProbability (0-1), where 1 means thriving/healthy and 0 means severely diseased/dying.
+4. If you see signs of plant disease, pests, fungal infections, root rot, scorch, or nutrient deficiency, list them in "diseases" with confidence (0-1) and a short sentence of visible evidence. If the plant is healthy, return an empty array for diseases.
+
+${hint ? `User's suggested plant name (untrusted context): ${hint}` : ""}
+${context.leafDescription ? `User's description of the leaves: ${context.leafDescription}` : ""}
+${context.continent ? `Regional continent: ${context.continent}` : ""}
+${context.watering ? `Stated watering: ${context.watering}` : ""}
+${context.light ? `Stated light: ${context.light}` : ""}`;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          ...images.map((image) => ({
+            inlineData: { data: image.data, mimeType: "image/jpeg" },
+          })),
+          { text: prompt },
+        ],
+      },
+    ],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: geminiPlantIdentificationSchema,
+      temperature: 0,
+    },
+  });
+
+  const parsed = asRecord(JSON.parse(response.text ?? "{}"));
+  if (!parsed) {
+    return { candidates: [], diseases: [], isPlant: true, healthyProbability: null };
+  }
+
+  const isPlant = parsed.isPlant !== false;
+  const rawCandidates = Array.isArray(parsed.candidates) ? parsed.candidates : [];
+  const candidates: PlantCandidate[] = rawCandidates.flatMap((item) => {
+    const rec = asRecord(item);
+    if (typeof rec?.species !== "string" || !rec.species.trim()) return [];
+    return [{
+      species: rec.species.trim(),
+      commonName: typeof rec.commonName === "string" && rec.commonName.trim() ? rec.commonName.trim() : null,
+      confidence: getProbability(rec.confidence),
+    }];
+  });
+
+  const rawDiseases = Array.isArray(parsed.diseases) ? parsed.diseases : [];
+  const diseases: DiseaseCandidate[] = rawDiseases.flatMap((item) => {
+    const rec = asRecord(item);
+    if (typeof rec?.name !== "string" || !rec.name.trim()) return [];
+    const conf = getProbability(rec.confidence);
+    if (conf < MIN_DISEASE_CONFIDENCE) return [];
+    return [{
+      name: rec.name.trim(),
+      confidence: conf,
+      evidence: typeof rec.evidence === "string" ? rec.evidence.trim() : "",
+    }];
+  });
+
+  const healthyProbability =
+    typeof parsed.healthyProbability === "number" ? getProbability(parsed.healthyProbability) : null;
+
+  return {
+    candidates: candidates.slice(0, 3),
+    diseases: diseases.slice(0, 3),
+    isPlant,
+    healthyProbability,
+  };
+}
+
 };
 
 function parseOwnerHint(value: unknown): OwnerHintResolution | null {
@@ -489,9 +608,24 @@ export async function diagnosePlant(
   try {
     plantId = parseCandidates(await requestPlantId(images.map((image) => image.data)));
   } catch (error) {
-    // Without an owner-provided name there is nothing to fall back on.
-    if (!hint) throw error;
-    console.error("Plant.id failed; continuing with the owner's plant name.", error);
+    console.warn("Plant.id identification failed, will attempt AI fallback:", error);
+  }
+
+  // AI Fallback: If Plant.id errored, returned no species candidates, or flagged as not a plant:
+  if (!plantId.candidates.length || !plantId.isPlant) {
+    try {
+      const aiPlantId = await identifyPlantWithGemini(images, hint, context);
+      if (aiPlantId.candidates.length || aiPlantId.isPlant) {
+        plantId = {
+          candidates: aiPlantId.candidates.length ? aiPlantId.candidates : plantId.candidates,
+          diseases: aiPlantId.diseases.length ? aiPlantId.diseases : plantId.diseases,
+          isPlant: aiPlantId.isPlant,
+          healthyProbability: aiPlantId.healthyProbability ?? plantId.healthyProbability,
+        };
+      }
+    } catch (aiFallbackError) {
+      console.error("AI plant identification fallback failed:", aiFallbackError);
+    }
   }
 
   const { candidates, diseases, isPlant, healthyProbability } = plantId;

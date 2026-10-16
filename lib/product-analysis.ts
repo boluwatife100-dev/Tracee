@@ -5,7 +5,12 @@ import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { deductCreditForScan } from "@/lib/credits";
 
-import { extractFromPhotos, ExtractionSchema, type Extraction } from "@/lib/extraction";
+import {
+  extractFromPhotos,
+  extractIngredientsFallback,
+  ExtractionSchema,
+  type Extraction,
+} from "@/lib/extraction";
 import { assessFluoride } from "@/lib/engines/flouride";
 import {
   detectAllergens,
@@ -16,7 +21,6 @@ import { explainIngredients } from "@/lib/engines/ingredient-explanations";
 import { loadGmoReference } from "@/lib/engines/gmo-reference";
 import { scoreGmo } from "@/lib/engines/gmo";
 import { normalizeIngredients } from "@/lib/engines/normalize";
-import { ensurePendingClearance } from "@/lib/clearance";
 import type {
   ClearanceInfo,
   ProductAlert,
@@ -75,16 +79,41 @@ export async function getProductAnalysis(
 
   const extraction = await resolveExtraction(scan);
   const rawText = scan.ocrText ?? "";
-  const labelIngredients = scan.ocrReviewedAt
+  let labelIngredients = scan.ocrReviewedAt
     ? ingredientSection(rawText) || rawText.trim()
     : extraction?.ingredientsText?.trim() || ingredientSection(rawText);
-  const ingredients = normalizeIngredients(labelIngredients);
-  const ingredientConfidence = scan.ocrReviewedAt
+  let ingredients = normalizeIngredients(labelIngredients);
+  let ingredientConfidence = scan.ocrReviewedAt
     ? rawText.trim()
       ? 0.95
       : 0
     : extraction?.legibility.ingredients ??
       (scan.ocrConfidence === null ? 0 : scan.ocrConfidence / 100);
+
+  // AI Fallback when OCR or initial extraction didn't yield ingredients:
+  if (ingredients.length === 0 && !scan.ocrReviewedAt) {
+    const photoIds = asRecord(scan.photoIds);
+    const photoList = [photoIds?.back, photoIds?.front].filter(
+      (id): id is string => typeof id === "string" && id.trim().length > 0
+    );
+    try {
+      const fallback = await extractIngredientsFallback({
+        photoPublicIds: photoList,
+        rawText,
+      });
+      if (fallback && fallback.ingredientsText) {
+        const fallbackIngredients = normalizeIngredients(fallback.ingredientsText);
+        if (fallbackIngredients.length > 0) {
+          ingredients = fallbackIngredients;
+          labelIngredients = fallback.ingredientsText;
+          ingredientConfidence = Math.max(ingredientConfidence, fallback.confidence);
+        }
+      }
+    } catch (fallbackError) {
+      console.error("AI ingredient extraction fallback failed in getProductAnalysis", fallbackError);
+    }
+  }
+
   const confidence = Math.min(1, Math.max(0, ingredientConfidence));
   const claims = extraction?.claims.join(". ") ?? "";
   const productType: Extraction["productType"] = extraction?.productType ?? "other";
@@ -110,10 +139,8 @@ export async function getProductAnalysis(
           ingredientsHash,
         });
 
-  // A label we could not read is not something to silently guess at: flag the
-  // scan for review and make sure an admin clearance record exists. If the user
-  // later corrects the label and ingredients appear, we stop re-flagging it.
-  let clearance: ClearanceInfo | null = scan.clearance
+  // Scans are only sent to the admin review queue when the user explicitly requests it.
+  const clearance: ClearanceInfo | null = scan.clearance
     ? {
         id: scan.clearance.id,
         status: scan.clearance.status,
@@ -124,11 +151,9 @@ export async function getProductAnalysis(
           : null,
       }
     : null;
-  if (ingredients.length === 0) {
+
+  if (ingredients.length > 0) {
     try {
-      clearance =
-        (await ensurePendingClearance(scan.id, "insufficient_evidence")) ??
-        clearance;
       await prisma.scan.updateMany({
         where: {
           id: scan.id,
@@ -136,10 +161,10 @@ export async function getProductAnalysis(
           kind: "product",
           status: "awaiting_catalog",
         },
-        data: { status: "needs_review" },
+        data: { status: "analyzed" },
       });
-    } catch (error) {
-      console.error("Failed to queue product scan for review", error);
+    } catch (statusError) {
+      console.error("Failed to update product scan status to analyzed", statusError);
     }
   }
   try {
@@ -195,11 +220,13 @@ async function resolveExtraction(scan: {
   if (savedExtraction.success) return savedExtraction.data;
 
   const photoIds = asRecord(scan.photoIds);
-  const backPhotoId = typeof photoIds?.back === "string" ? photoIds.back : null;
-  if (!backPhotoId || scan.ocrReviewedAt) return null;
+  const ids = [photoIds?.back, photoIds?.front].filter(
+    (id): id is string => typeof id === "string" && id.trim().length > 0
+  );
+  if (ids.length === 0 || scan.ocrReviewedAt) return null;
 
   try {
-    const extraction = await extractFromPhotos([backPhotoId]);
+    const extraction = await extractFromPhotos(ids);
     try {
       await prisma.scan.update({
         where: { id: scan.id },
@@ -357,11 +384,11 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function ingredientSection(text: string): string {
-  const marker = /\b(?:ingredients?|composition)\s*[:\-]\s*/i.exec(text);
+  const marker = /\b(?:ingredients?|composition|contains)\s*[:\-]?\s*/i.exec(text);
   if (!marker) return "";
   const start = marker.index + marker[0].length;
   const remaining = text.slice(start);
-  const end = /\b(?:allergen information|allergy advice|may contain|contains|nutrition(?:al)? information|storage instructions|directions|warning|caution)\b/i.exec(remaining);
+  const end = /\b(?:allergen information|allergy advice|may contain|nutrition(?:al)? information|storage instructions|directions|warning|caution)\b/i.exec(remaining);
   return (end ? remaining.slice(0, end.index) : remaining).trim();
 }
 

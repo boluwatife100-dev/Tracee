@@ -89,7 +89,7 @@ export default function HowItWorks() {
 
             <div className="relative aspect-video w-full">
               <video
-                src="/tracee-exp1.mp4"
+                src="/tracee-exp.mp4"
                 controls
                 muted
                 autoPlay

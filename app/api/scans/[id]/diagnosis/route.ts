@@ -1,7 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { diagnosePlant } from "@/lib/plant-diagnosis";
-import { ensurePendingClearance } from "@/lib/clearance";
 import { deductCreditForScan } from "@/lib/credits";
 
 
@@ -103,7 +102,7 @@ export async function POST(
         });
         await transaction.scan.update({
           where: { id: scan.id },
-          data: { status: result.needsBetterPhoto ? "needs_review" : "analyzed" },
+          data: { status: "analyzed" },
         });
       },
       {
@@ -118,14 +117,6 @@ export async function POST(
       console.error("Failed to deduct credit for plant scan", creditError);
     }
 
-    if (result.needsBetterPhoto) {
-      try {
-        await ensurePendingClearance(scan.id, "insufficient_evidence");
-      } catch (clearanceError) {
-        console.error("Failed to queue plant scan for review", clearanceError);
-      }
-    }
-
     return Response.json({
       scanId: scan.id,
       needsBetterPhoto: result.needsBetterPhoto,
@@ -133,13 +124,10 @@ export async function POST(
   } catch (error) {
     console.error("Failed to diagnose plant scan", error);
     try {
-      const failed = await prisma.scan.updateMany({
+      await prisma.scan.updateMany({
         where: { id, userId, kind: "plant", status: "analyzing" },
         data: { status: "failed" },
       });
-      if (failed.count) {
-        await ensurePendingClearance(id, "insufficient_evidence");
-      }
     } catch (statusError) {
       console.error("Failed to mark plant scan as failed", statusError);
     }
