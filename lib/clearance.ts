@@ -98,6 +98,16 @@ export async function requestUserClearance(
       reviewedAt: true,
     },
   });
+
+  try {
+    await prisma.scan.update({
+      where: { id: scanId },
+      data: { status: "needs_review" },
+    });
+  } catch (scanUpdateError) {
+    console.error("Failed to set scan status to needs_review upon user clearance request", scanUpdateError);
+  }
+
   return {
     ...clearance,
     reviewedAt: clearance.reviewedAt ? clearance.reviewedAt.toISOString() : null,
