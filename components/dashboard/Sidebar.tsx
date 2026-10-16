@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import {
   ClipboardList,
-  History,
+  Clock4Icon,
   LayoutDashboard,
   ScanLine,
   ShieldCheck,
@@ -16,12 +16,14 @@ import { isAdminRole, readRole } from "@/lib/admin-role";
 import {
   Sidebar as SidebarRoot,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import CreditBalanceWidget from "./CreditBalanceWidget";
 
 const NAV_ITEMS: {
   label: string;
@@ -36,7 +38,7 @@ const NAV_ITEMS: {
     href: "/dashboard/authenticity",
     icon: ShieldCheck,
   },
-  { label: "History", href: "/dashboard/history", icon: History },
+  { label: "History", href: "/dashboard/history", icon: Clock4Icon },
   { label: "Profile", href: "/dashboard/profile", icon: UserRound },
 ];
 
@@ -88,6 +90,9 @@ export default function DashboardSidebar() {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <CreditBalanceWidget />
+      </SidebarFooter>
     </SidebarRoot>
   );
 }

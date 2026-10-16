@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
 import { Prisma } from "@/app/generated/prisma/client";
+import { hasCredits, deductCreditForAuthenticity } from "@/lib/credits";
+
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedScanImageUrl } from "@/lib/scan-image";
 import {
@@ -205,6 +207,17 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+  const eligible = await hasCredits(userId);
+  if (!eligible) {
+    return Response.json(
+      {
+        error: "You have used all your credits. Please purchase more credits to continue scanning.",
+        code: "OUT_OF_CREDITS",
+      },
+      { status: 402 }
+    );
+  }
+
 
   const key = idempotencyKey(payload);
   let check = await prisma.authenticityCheck.findUnique({
@@ -429,6 +442,12 @@ export async function POST(request: Request) {
       { error: "Unable to save the authenticity result." },
       { status: 500 }
     );
+  }
+
+  try {
+    await deductCreditForAuthenticity(userId, check.id);
+  } catch (creditError) {
+    console.error("Failed to deduct credit for authenticity check", creditError);
   }
 
   return Response.json(await responseForCheck(check.id, userId), { status: 201 });

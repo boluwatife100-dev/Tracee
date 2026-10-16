@@ -1,6 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { useCredits, notifyCreditsUpdated } from "@/components/credits/CreditsContext";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -262,6 +265,8 @@ export default function ScanCapture({
   const [mode, setMode] = useState<ScanMode>(initialMode);
   const [frontPhoto, setFrontPhoto] = useState<File | null>(null);
   const [backPhoto, setBackPhoto] = useState<File | null>(null);
+  const { credits, loading: creditsLoading } = useCredits();
+
   const [wholePlantPhoto, setWholePlantPhoto] = useState<File | null>(null);
   const [closeUpPhoto, setCloseUpPhoto] = useState<File | null>(null);
   const [undersidePhoto, setUndersidePhoto] = useState<File | null>(null);
@@ -275,12 +280,15 @@ export default function ScanCapture({
   const [mediaConsent, setMediaConsent] = useState(false);
   const isBusy =
     status === "reading" || status === "uploading" || status === "analyzing";
+  const isOutOfCredits = !creditsLoading && credits <= 0;
+  const isLowCredits = !creditsLoading && credits > 0 && credits <= 2;
   const canSubmit =
     (mode === "product"
       ? Boolean(frontPhoto && backPhoto)
       : Boolean(wholePlantPhoto && closeUpPhoto && watering && light)) &&
     mediaConsent &&
-    !isBusy;
+    !isBusy &&
+    !isOutOfCredits;
 
   function updatePhoto(
     setPhoto: (file: File | null) => void,
@@ -310,6 +318,11 @@ export default function ScanCapture({
     ) {
       return;
     }
+    if (isOutOfCredits) {
+      setError("You have used all your credits. Please visit the Credits page to purchase more.");
+      return;
+    }
+
 
     let recognizedText = "";
     let recognizedConfidence: number | null = null;
@@ -416,10 +429,12 @@ export default function ScanCapture({
         if (!diagnosisResponse.ok) {
           throw new Error(diagnosisData.error ?? "Could not analyze this plant.");
         }
+        notifyCreditsUpdated();
         router.push(`/dashboard/my-plant/${savedScanId}`);
         return;
       }
       setStatus("analyzing");
+      notifyCreditsUpdated();
       router.push(`/dashboard/scan/product-result?id=${savedScanId}`);
     } catch (caughtError) {
       setStatus("idle");
@@ -453,6 +468,43 @@ export default function ScanCapture({
           Capture a product label or give us the views and context we need to assess a plant.
         </p>
       </div>
+      {isOutOfCredits && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-900">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="size-5 shrink-0 text-red-600 mt-0.5" />
+            <div>
+              <p className="font-semibold">You&apos;re out of scan credits (0 remaining)</p>
+              <p className="text-xs text-red-700 mt-0.5">
+                Each scan requires 1 credit. Please visit the Credits page to purchase more.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/credits"
+            className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-red-700 shrink-0"
+          >
+            Get Credits
+          </Link>
+        </div>
+      )}
+
+      {isLowCredits && (
+        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-2.5 text-xs text-amber-900">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="size-4 text-amber-700" />
+            <span>
+              <strong>{credits} {credits === 1 ? "credit" : "credits"} remaining</strong> on your account.
+            </span>
+          </div>
+          <Link
+            href="/dashboard/credits"
+            className="font-semibold text-amber-900 underline underline-offset-2 hover:text-black"
+          >
+            View Refills &rarr;
+          </Link>
+        </div>
+      )}
+
 
       <div
         className="grid grid-cols-2 border-b border-forest/15"

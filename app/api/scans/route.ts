@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
+import { hasCredits } from "@/lib/credits";
+
 export const runtime = "nodejs";
 
 const MAX_OCR_TEXT_LENGTH = 150_000;
@@ -190,6 +192,17 @@ export async function POST(request: Request) {
   if (!payload) {
     return Response.json({ error: "Invalid scan details" }, { status: 400 });
   }
+  const eligible = await hasCredits(userId);
+  if (!eligible) {
+    return Response.json(
+      {
+        error: "You have used all your credits. Please purchase more credits to continue scanning.",
+        code: "OUT_OF_CREDITS",
+      },
+      { status: 402 }
+    );
+  }
+
 
   try {
     const status =

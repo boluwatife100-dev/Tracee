@@ -5,7 +5,7 @@ import {
   HistoryIcon,
   ArrowRightIcon,
 } from "@/components/ui/icons";
-import { ShieldCheck } from "lucide-react";
+import { Clock4Icon, ScanLine, ShieldCheck } from "lucide-react";
 
 const ACTION_CARDS = [
   {
@@ -13,7 +13,7 @@ const ACTION_CARDS = [
     description: "Check ingredients, certifications, and safety factors.",
     buttonLabel: "Scan Now",
     href: "/dashboard/scan",
-    icon: BoxIcon,
+    icon: ScanLine,
   },
   {
     title: "Diagnose a Plant",
@@ -34,7 +34,7 @@ const ACTION_CARDS = [
     description: "Revisit your past scans and saved verdicts.",
     buttonLabel: "View History",
     href: "/dashboard/history",
-    icon: HistoryIcon,
+    icon: Clock4Icon,
   },
 ];
 
@@ -59,7 +59,7 @@ export default function ActionCards() {
             </div>
             <Link
               href={card.href}
-              className="mt-auto inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest text-sm font-semibold text-white transition-colors hover:bg-forest-dark"
+              className="mt-auto inline-flex h-11 w-auto items-center justify-center gap-2 rounded-xl bg-forest text-sm font-semibold text-white transition-colors hover:bg-forest-dark"
             >
               {card.buttonLabel}
               <ArrowRightIcon className="h-4 w-4" />

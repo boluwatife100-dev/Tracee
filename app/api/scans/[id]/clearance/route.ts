@@ -7,7 +7,18 @@ export const runtime = "nodejs";
 async function ownedScan(scanId: string, userId: string) {
   return prisma.scan.findFirst({
     where: { id: scanId, userId },
-    select: { id: true, clearance: { select: { id: true, status: true, reason: true } } },
+    select: {
+      id: true,
+      clearance: {
+        select: {
+          id: true,
+          status: true,
+          reason: true,
+          adminNote: true,
+          reviewedAt: true,
+        },
+      },
+    },
   });
 }
 
@@ -26,7 +37,16 @@ export async function GET(
   const scan = await ownedScan(id, userId);
   if (!scan) return Response.json({ error: "Scan not found" }, { status: 404 });
 
-  return Response.json({ clearance: scan.clearance ?? null });
+  const clearance = scan.clearance
+    ? {
+        ...scan.clearance,
+        reviewedAt: scan.clearance.reviewedAt
+          ? scan.clearance.reviewedAt.toISOString()
+          : null,
+      }
+    : null;
+
+  return Response.json({ clearance });
 }
 
 export async function POST(
@@ -52,9 +72,10 @@ export async function POST(
     return Response.json({ clearance }, { status: 201 });
   } catch (error) {
     console.error("Failed to request scan clearance", error);
-    return Response.json(
-      { error: "Unable to send this scan for review. Please try again." },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to send this scan for review. Please try again.";
+    return Response.json({ error: message }, { status: 400 });
   }
 }

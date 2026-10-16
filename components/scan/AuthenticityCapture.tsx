@@ -1,6 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { useCredits, notifyCreditsUpdated } from "@/components/credits/CreditsContext";
+
 import { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
@@ -462,6 +465,10 @@ export default function AuthenticityCapture() {
   const [reportError, setReportError] = useState("");
   const [reportSaved, setReportSaved] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
+  const { credits, loading: creditsLoading } = useCredits();
+  const isOutOfCredits = !creditsLoading && credits <= 0;
+  const isLowCredits = !creditsLoading && credits > 0 && credits <= 2;
+
 
   async function refreshHistory() {
     setHistoryLoading(true);
@@ -568,6 +575,11 @@ export default function AuthenticityCapture() {
     setResult(null);
     setStatus("uploading");
 
+    if (isOutOfCredits) {
+      setError("You have used all your credits. Please visit the Credits page to purchase more.");
+      return;
+    }
+
     try {
       const uploaded = await Promise.all(
         selected.map(async ([slot, file]) => {
@@ -649,6 +661,7 @@ export default function AuthenticityCapture() {
       }
       setResult(data);
       setStatus("complete");
+      notifyCreditsUpdated();
       await refreshHistory().catch((historyError: unknown) => {
         setError(
           historyError instanceof Error
@@ -728,6 +741,43 @@ export default function AuthenticityCapture() {
 
       <Disclaimer />
 
+      {isOutOfCredits && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-900">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="size-5 shrink-0 text-red-600 mt-0.5" />
+            <div>
+              <p className="font-semibold">You&apos;re out of scan credits (0 remaining)</p>
+              <p className="text-xs text-red-700 mt-0.5">
+                Each authenticity check requires 1 credit. Please visit the Credits page to purchase more.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/credits"
+            className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-red-700 shrink-0"
+          >
+            Get Credits
+          </Link>
+        </div>
+      )}
+
+      {isLowCredits && (
+        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-2.5 text-xs text-amber-900">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="size-4 text-amber-700" />
+            <span>
+              <strong>{credits} {credits === 1 ? "credit" : "credits"} remaining</strong> on your account.
+            </span>
+          </div>
+          <Link
+            href="/dashboard/credits"
+            className="font-semibold text-amber-900 underline underline-offset-2 hover:text-black"
+          >
+            View Refills &rarr;
+          </Link>
+        </div>
+      )}
+
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <PhotoField
           id="authenticity-front"
@@ -795,7 +845,7 @@ export default function AuthenticityCapture() {
         </label>
         <button
           type="button"
-          disabled={!Object.values(photos).some(Boolean) || !consent || busy}
+          disabled={!Object.values(photos).some(Boolean) || !consent || busy || isOutOfCredits}
           onClick={handleSubmit}
           className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-forest px-5 text-sm font-semibold text-white transition-colors hover:bg-forest-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest disabled:cursor-not-allowed disabled:bg-forest/35 sm:w-auto sm:self-start"
         >

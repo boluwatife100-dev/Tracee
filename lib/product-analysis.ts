@@ -3,6 +3,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { prisma } from "@/lib/prisma";
+import { deductCreditForScan } from "@/lib/credits";
+
 import { extractFromPhotos, ExtractionSchema, type Extraction } from "@/lib/extraction";
 import { assessFluoride } from "@/lib/engines/flouride";
 import {
@@ -16,6 +18,7 @@ import { scoreGmo } from "@/lib/engines/gmo";
 import { normalizeIngredients } from "@/lib/engines/normalize";
 import { ensurePendingClearance } from "@/lib/clearance";
 import type {
+  ClearanceInfo,
   ProductAlert,
   ProductAnalysisResult,
   ProductVerdict,
@@ -57,7 +60,15 @@ export async function getProductAnalysis(
       ocrReviewedAt: true,
       extraction: true,
       analysis: true,
-      clearance: { select: { id: true, status: true, reason: true } },
+      clearance: {
+        select: {
+          id: true,
+          status: true,
+          reason: true,
+          adminNote: true,
+          reviewedAt: true,
+        },
+      },
     },
   });
   if (!scan) throw new ProductAnalysisNotFoundError("Product scan not found.");
@@ -102,7 +113,17 @@ export async function getProductAnalysis(
   // A label we could not read is not something to silently guess at: flag the
   // scan for review and make sure an admin clearance record exists. If the user
   // later corrects the label and ingredients appear, we stop re-flagging it.
-  let clearance = scan.clearance;
+  let clearance: ClearanceInfo | null = scan.clearance
+    ? {
+        id: scan.clearance.id,
+        status: scan.clearance.status,
+        reason: scan.clearance.reason,
+        adminNote: scan.clearance.adminNote,
+        reviewedAt: scan.clearance.reviewedAt
+          ? scan.clearance.reviewedAt.toISOString()
+          : null,
+      }
+    : null;
   if (ingredients.length === 0) {
     try {
       clearance =
@@ -121,6 +142,13 @@ export async function getProductAnalysis(
       console.error("Failed to queue product scan for review", error);
     }
   }
+  try {
+    await deductCreditForScan(userId, scan.id);
+  } catch (creditError) {
+    console.error("Failed to deduct credit for product scan", creditError);
+  }
+
+
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -153,7 +181,7 @@ export async function getProductAnalysis(
     ingredients: shared.ingredients,
     analysisWarnings: shared.analysisWarnings,
     imageUrl: "",
-    clearance: clearance ?? null,
+    clearance,
   };
 }
 

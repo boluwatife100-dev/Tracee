@@ -104,6 +104,20 @@ export function SidebarContent({
     />
   );
 }
+export function SidebarFooter({
+  className = "",
+  ...props
+}: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      data-slot="sidebar-footer"
+      className={`mt-auto flex flex-col border-t border-forest/10 p-3 ${className}`}
+      {...props}
+    />
+  );
+}
+
+
 
 export function SidebarGroup({
   className = "",

@@ -33,7 +33,15 @@ export default async function PlantScanPage({
           tasks: { orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }] },
         },
       },
-      clearance: { select: { id: true, status: true, reason: true } },
+      clearance: {
+        select: {
+          id: true,
+          status: true,
+          reason: true,
+          adminNote: true,
+          reviewedAt: true,
+        },
+      },
     },
   });
   if (!scan) notFound();
@@ -73,7 +81,14 @@ export default async function PlantScanPage({
         dueAt: task.dueAt?.toISOString() ?? null,
         recurrence: task.recurrence,
       })) ?? [],
-    clearance: scan.clearance ?? null,
+    clearance: scan.clearance
+      ? {
+          ...scan.clearance,
+          reviewedAt: scan.clearance.reviewedAt
+            ? scan.clearance.reviewedAt.toISOString()
+            : null,
+        }
+      : null,
   };
 
   return <PlantAnalysis result={result} />;

@@ -24,7 +24,7 @@ export async function reviewClearance(formData: FormData) {
   const status = DECISIONS[action];
   if (!id || !status) return;
 
-  await prisma.clearanceRequest.update({
+  const updated = await prisma.clearanceRequest.update({
     where: { id },
     data: {
       status,
@@ -32,7 +32,30 @@ export async function reviewClearance(formData: FormData) {
       reviewedBy: userId,
       reviewedAt: new Date(),
     },
+    select: {
+      scanId: true,
+    },
   });
 
+  if (updated.scanId) {
+    // If cleared, mark the scan analyzed. If needs_info or rejected, mark needs_review or failed.
+    const scanStatus =
+      status === "cleared"
+        ? "analyzed"
+        : status === "rejected"
+          ? "failed"
+          : "needs_review";
+
+    await prisma.scan.update({
+      where: { id: updated.scanId },
+      data: { status: scanStatus },
+    });
+  }
+
   revalidatePath("/admin/review");
+  revalidatePath("/dashboard/scan/product-result");
+  revalidatePath("/dashboard/history");
+  if (updated.scanId) {
+    revalidatePath(`/dashboard/my-plant/${updated.scanId}`);
+  }
 }

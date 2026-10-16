@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { diagnosePlant } from "@/lib/plant-diagnosis";
 import { ensurePendingClearance } from "@/lib/clearance";
+import { deductCreditForScan } from "@/lib/credits";
+
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -72,37 +74,49 @@ export async function POST(
     );
 
     const createdAt = new Date();
-    await prisma.$transaction(async (transaction) => {
-      await transaction.plantDiagnosis.upsert({
-        where: { scanId: scan.id },
-        create: {
-          scanId: scan.id,
-          candidates: result.candidates,
-          diagnosis: { diseases: result.diseases, symptoms: result.symptoms },
-          needsBetterPhoto: result.needsBetterPhoto,
-          summary: result.summary,
-          tasks: {
-            create: result.tasks.map((task) => ({
-              userId,
-              title: task.title,
-              detail: task.detail,
-              dueAt: new Date(createdAt.getTime() + task.dueInDays * 86_400_000),
-              recurrence: task.recurrence,
-            })),
+    await prisma.$transaction(
+      async (transaction) => {
+        await transaction.plantDiagnosis.upsert({
+          where: { scanId: scan.id },
+          create: {
+            scanId: scan.id,
+            candidates: result.candidates,
+            diagnosis: { diseases: result.diseases, symptoms: result.symptoms },
+            needsBetterPhoto: result.needsBetterPhoto,
+            summary: result.summary,
+            tasks: {
+              create: result.tasks.map((task) => ({
+                userId,
+                title: task.title,
+                detail: task.detail,
+                dueAt: new Date(createdAt.getTime() + task.dueInDays * 86_400_000),
+                recurrence: task.recurrence,
+              })),
+            },
           },
-        },
-        update: {
-          candidates: result.candidates,
-          diagnosis: { diseases: result.diseases, symptoms: result.symptoms },
-          needsBetterPhoto: result.needsBetterPhoto,
-          summary: result.summary,
-        },
-      });
-      await transaction.scan.update({
-        where: { id: scan.id },
-        data: { status: result.needsBetterPhoto ? "needs_review" : "analyzed" },
-      });
-    });
+          update: {
+            candidates: result.candidates,
+            diagnosis: { diseases: result.diseases, symptoms: result.symptoms },
+            needsBetterPhoto: result.needsBetterPhoto,
+            summary: result.summary,
+          },
+        });
+        await transaction.scan.update({
+          where: { id: scan.id },
+          data: { status: result.needsBetterPhoto ? "needs_review" : "analyzed" },
+        });
+      },
+      {
+        maxWait: 5000,
+        timeout: 15000,
+      }
+    );
+
+    try {
+      await deductCreditForScan(userId, scan.id);
+    } catch (creditError) {
+      console.error("Failed to deduct credit for plant scan", creditError);
+    }
 
     if (result.needsBetterPhoto) {
       try {
